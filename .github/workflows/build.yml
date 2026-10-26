@@ -75,7 +75,7 @@ jobs:
           # everything for the setup is gathered here; the result is the setup only
           $p = "build-cache/stage"
           New-Item -ItemType Directory -Force "$p/tools", "dist" | Out-Null
-          Copy-Item target/release/EzooDownload.exe $p
+          Copy-Item target/release/MooDownloader.exe $p
           Copy-Item THIRD-PARTY-NOTICES.txt $p
           Copy-Item -Recurse extension "$p/extension"
           Copy-Item -Recurse extension "$p/extension-firefox"
