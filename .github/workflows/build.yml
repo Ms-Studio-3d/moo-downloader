@@ -45,7 +45,7 @@ jobs:
           tar xzf lame.tar.gz
           git clone -q --depth 1 --branch "$OPENH264_TAG" https://github.com/cisco/openh264 openh264-src
           test "$(git -C openh264-src rev-parse HEAD)" = "$OPENH264_COMMIT" || { echo "::error::OpenH264 source is not the expected commit"; exit 1; }
-          CC=x86_64-w64-mingw32-gcc CXX=x86_64-w64-mingw32-g++ tools/ffmpeg/build.sh ffmpeg-src lame-3.100 openh264-src ffmpeg-out
+          CC=x86_64-w64-mingw32-gcc CXX=x86_64-w64-mingw32-g++ bash tools/ffmpeg/build.sh ffmpeg-src lame-3.100 openh264-src ffmpeg-out
           echo "$FFMPEG_TAG ($FFMPEG_COMMIT), LAME 3.100, OpenH264 $OPENH264_TAG" > ffmpeg-out/ffmpeg-version.txt
       - name: Test files for our ffmpeg (made with the system's full ffmpeg)
         run: |
