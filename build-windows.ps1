@@ -9,7 +9,7 @@ function Step($text) { Write-Host ""; Write-Host "==> $text" -ForegroundColor Cy
 function Fail($text) {
     Write-Host ""
     Write-Host "ERROR: $text" -ForegroundColor Red
-    Write-Host "Send a screenshot of this window to Claude." -ForegroundColor Yellow
+    Write-Host "See the error above and the build log." -ForegroundColor Yellow
     Read-Host "Press Enter to close"
     exit 1
 }
@@ -62,13 +62,13 @@ Write-Host "Version $version"
 
 # ---------------------------------------------------------------- 3. build
 # a running copy would lock the files we replace
-Get-Process MooDownloader, SwiftGet -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+Get-Process MooDownloader, SwiftGet, moo-host -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
 Step "Building MooDownloader.exe (first time: 5-15 minutes)"
 cargo build --release
 if ($LASTEXITCODE -ne 0) { Fail "The build failed. Scroll up to see the first red 'error' lines." }
 
 # ---------------------------------------------------------------- 4. package
-# The result is ONE file: dist\MooDownloader-Setup.exe (+ dist\version.json
+# The result is ONE file: dist\MooDownloader-Setup.exe (+ dist\SHA256SUMS.txt
 # for the GitHub release). Everything that goes into the setup is gathered
 # first in build-cache\stage, which is not part of the result:
 #   MooDownloader.exe, tools\yt-dlp.exe + ffmpeg.exe, extension, extension-firefox
@@ -88,6 +88,8 @@ foreach ($old in @("extension", "portable", "store", "redist")) {
 }
 
 Copy-Item "target\release\MooDownloader.exe" $stage -Force
+# the helper the browser starts to talk to the program (no port)
+Copy-Item "target\release\moo-host.exe" $stage -Force
 foreach ($name in @("extension", "extension-firefox")) {
     $to = Join-Path $stage $name
     if (Test-Path $to) { Remove-Item -Recurse -Force $to }
@@ -99,8 +101,8 @@ Copy-Item -Force "$stage\extension-firefox\manifest.firefox.json" "$stage\extens
 Remove-Item "$stage\extension-firefox\manifest.firefox.json" -Force
 Remove-Item "$stage\extension\manifest.firefox.json" -Force -ErrorAction SilentlyContinue
 
-# ffmpeg (joins video + audio) and yt-dlp (finds video links): downloaded
-# once into build-cache, the app keeps them updated by itself afterwards
+# yt-dlp (finds video links): downloaded once into build-cache, the app
+# keeps it updated by itself afterwards
 # The SHA-256 of a file from a checksum list ("<sha256>  <name>" lines), checked.
 function Assert-Sha256($file, $sumsUrl, $name) {
     $text = (Invoke-WebRequest $sumsUrl -UseBasicParsing).Content
@@ -113,32 +115,17 @@ function Assert-Sha256($file, $sumsUrl, $name) {
         throw "$name does not match its published SHA-256"
     }
 }
-if (-not (Test-Path "$cache\ffmpeg.exe")) {
-    Step "Downloading ffmpeg (joins video + audio)"
-    try {
-        # builds published on GitHub: newest stable 64-bit Windows one
-        $rel = Invoke-RestMethod "https://api.github.com/repos/BtbN/FFmpeg-Builds/releases/tags/latest" -Headers @{ "User-Agent" = "MooDownloader-build" }
-        $asset = $rel.assets | Where-Object { $_.name -match '^ffmpeg-n[0-9.]+-latest-win64-gpl-[0-9.]+\.zip$' } |
-            Sort-Object { [version](($_.name -replace '^ffmpeg-n([0-9.]+)-.*$', '$1') + '.0') } | Select-Object -Last 1
-        if (-not $asset) { $asset = $rel.assets | Where-Object { $_.name -eq 'ffmpeg-master-latest-win64-gpl.zip' } | Select-Object -First 1 }
-        $zip = Join-Path $env:TEMP "ezoo-ffmpeg.zip"
-        $tmp = Join-Path $env:TEMP "ezoo-ffmpeg"
-        Invoke-WebRequest $asset.browser_download_url -OutFile $zip
-        $sums = $rel.assets | Where-Object { $_.name -eq "checksums.sha256" } | Select-Object -First 1
-        Assert-Sha256 $zip $sums.browser_download_url $asset.name
-        if (Test-Path $tmp) { Remove-Item -Recurse -Force $tmp }
-        Expand-Archive $zip -DestinationPath $tmp
-        $ff = Get-ChildItem $tmp -Recurse -Filter ffmpeg.exe | Select-Object -First 1
-        Copy-Item $ff.FullName $cache -Force
-        $lic = Get-ChildItem $tmp -Recurse -Filter "LICENSE*" | Select-Object -First 1
-        if ($lic) { Copy-Item $lic.FullName "$cache\ffmpeg-LICENSE.txt" -Force }
-        Remove-Item -Recurse -Force $tmp, $zip
-        # the same text the app compares with when it looks for updates
-        $u = $asset.updated_at; if ($u -is [datetime]) { $u = $u.ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ') }
-        "$($asset.name) $u" | Set-Content "$cache\ffmpeg-version.txt" -NoNewline
-    } catch {
-        Write-Host "Could not download ffmpeg now. Moo Downloader gets it by itself later." -ForegroundColor Yellow
+# ffmpeg: our own small build (tools\ffmpeg\build.sh; GitHub builds it for
+# every release). A ready one in tools\ffmpeg\win64 is used when it is there;
+# the big public build of earlier versions is not used any more.
+$ours = Join-Path $PSScriptRoot "tools\ffmpeg\win64"
+if (Test-Path "$ours\ffmpeg.exe") {
+    foreach ($f in @("ffmpeg.exe", "ffmpeg-LICENSE.txt", "lame-COPYING.txt", "openh264-LICENSE.txt", "ffmpeg-version.txt")) {
+        if (Test-Path "$ours\$f") { Copy-Item "$ours\$f" $cache -Force }
     }
+} elseif ((Test-Path "$cache\ffmpeg.exe") -and ((Get-Item "$cache\ffmpeg.exe").Length -gt 20MB)) {
+    Remove-Item "$cache\ffmpeg.exe", "$cache\ffmpeg-version.txt" -Force -ErrorAction SilentlyContinue
+    Write-Host "The old big ffmpeg was removed. Put our small ffmpeg.exe in tools\ffmpeg\win64 (it comes with the source zip, or from a GitHub build)." -ForegroundColor Yellow
 }
 if (-not (Test-Path "$cache\yt-dlp.exe")) {
     Step "Downloading yt-dlp (finds the links of videos)"
@@ -149,22 +136,7 @@ if (-not (Test-Path "$cache\yt-dlp.exe")) {
         Invoke-WebRequest $ytExe.browser_download_url -OutFile "$cache\yt-dlp.exe"
         Assert-Sha256 "$cache\yt-dlp.exe" $ytSums.browser_download_url "yt-dlp.exe"
     } catch {
-        Write-Host "Could not download yt-dlp now. Moo Downloader gets it by itself later." -ForegroundColor Yellow
-    }
-}
-if (-not (Test-Path "$cache\aria2c.exe")) {
-    Step "Downloading aria2 (torrents)"
-    try {
-        $zip = Join-Path $cache "aria2.zip"
-        Invoke-WebRequest "https://github.com/aria2/aria2/releases/download/release-1.37.0/aria2-1.37.0-win-64bit-build1.zip" -OutFile $zip
-        if ((Get-FileHash $zip -Algorithm SHA256).Hash -ne "67D015301EEF0B612191212D564C5BB0A14B5B9C4796B76454276A4D28D9B288") { throw "aria2.zip does not match its SHA-256" }
-        $tmp = Join-Path $cache "aria2-tmp"
-        Expand-Archive $zip -DestinationPath $tmp -Force
-        Copy-Item (Get-ChildItem $tmp -Recurse -Filter aria2c.exe | Select-Object -First 1).FullName "$cache\aria2c.exe" -Force
-        Copy-Item (Get-ChildItem $tmp -Recurse -Filter COPYING | Select-Object -First 1).FullName "$cache\aria2-COPYING.txt" -Force
-        Remove-Item $tmp -Recurse -Force
-    } catch {
-        Write-Host "Could not download aria2 now. Moo Downloader gets it by itself later." -ForegroundColor Yellow
+        Write-Host "Could not download yt-dlp now. Use Help > Check for updates (video downloader) to install it manually." -ForegroundColor Yellow
     }
 }
 # Visual C++ runtime: the program already carries it (static CRT, see
@@ -174,11 +146,36 @@ $redist = Join-Path $cache "redist"
 New-Item -ItemType Directory -Force $redist | Out-Null
 if (Test-Path "$cache\vc_redist.x64.exe") { Copy-Item "$cache\vc_redist.x64.exe" $redist -Force }
 Copy-Item "THIRD-PARTY-NOTICES.txt" $stage -Force
+Copy-Item "LICENSE" (Join-Path $stage "LICENSE.txt") -Force
 # the Firefox add-on signed by Mozilla for this version (stays in Firefox for good)
 $extVersion = (Get-Content (Join-Path $PSScriptRoot "extension\manifest.firefox.json") -Raw | ConvertFrom-Json).version
-$signedXpi = "extension-signed\ezoo-download-firefox-$extVersion.xpi"
-if (Test-Path $signedXpi) { Copy-Item $signedXpi (Join-Path $stage "ezoo-download-firefox.xpi") -Force }
-foreach ($f in @("ffmpeg.exe", "yt-dlp.exe", "ffmpeg-version.txt", "ffmpeg-LICENSE.txt", "aria2c.exe", "aria2-COPYING.txt")) {
+# Firefox keeps only add-ons signed by Mozilla (an unsigned one is gone
+# when Firefox closes). Only a signed add-on of exactly this version goes
+# into the setup: an older one would put the old add-on back into Firefox.
+# Kept here (extension-signed), or the one of the newest release when that
+# release is this version; otherwise the setup has none (a release signs it).
+function Get-XpiVersion([string]$path) {
+    try {
+        Add-Type -AssemblyName System.IO.Compression.FileSystem
+        $zip = [System.IO.Compression.ZipFile]::OpenRead($path)
+        try {
+            $entry = $zip.GetEntry("manifest.json")
+            if (-not $entry) { return $null }
+            $reader = New-Object System.IO.StreamReader($entry.Open())
+            try { return ($reader.ReadToEnd() | ConvertFrom-Json).version } finally { $reader.Close() }
+        } finally { $zip.Dispose() }
+    } catch { return $null }
+}
+$signedXpi = "extension-signed\moo-downloader-firefox-$extVersion.xpi"
+$xpiOut = Join-Path $stage "moo-downloader-firefox.xpi"
+Remove-Item $xpiOut -Force -ErrorAction SilentlyContinue
+if ((Test-Path $signedXpi) -and ((Get-XpiVersion $signedXpi) -eq $extVersion)) {
+    Copy-Item $signedXpi $xpiOut -Force
+}
+if (-not (Test-Path $xpiOut)) {
+    Write-Warning "No signed Firefox add-on $extVersion yet: this setup has none. Firefox users can load the folder temporarily."
+}
+foreach ($f in @("ffmpeg.exe", "yt-dlp.exe", "ffmpeg-version.txt", "ffmpeg-LICENSE.txt", "lame-COPYING.txt", "openh264-LICENSE.txt")) {
     if (Test-Path "$cache\$f") { Copy-Item "$cache\$f" $tools -Force }
 }
 
@@ -201,6 +198,7 @@ function Sign-File($file) {
 if ($signtool) {
     Step "Signing MooDownloader.exe"
     Sign-File "$stage\MooDownloader.exe"
+    Sign-File "$stage\moo-host.exe"
 }
 
 
@@ -239,11 +237,8 @@ if ($iscc) {
     if ($ok) {
         Copy-Item (Join-Path $out "MooDownloader-Setup.exe") $setup -Force
         Sign-File $setup
-        # version.json: the program reads it from the latest GitHub release
-        # to update itself (version + SHA-256 of the installer)
         $hash = (Get-FileHash $setup -Algorithm SHA256).Hash.ToLower()
-        $json = "{`n  ""version"": ""$version"",`n  ""url"": ""https://github.com/Ms-Studio-3d/moo-downloader/releases/download/v$version/MooDownloader-Setup.exe"",`n  ""sha256"": ""$hash""`n}`n"
-        [IO.File]::WriteAllText((Join-Path $dist "version.json"), $json)
+        "$hash  MooDownloader-Setup.exe" | Set-Content (Join-Path $dist "SHA256SUMS.txt")
     } else {
         Fail "Could not create the setup. Tip: move this folder out of Desktop/OneDrive (e.g. to C:\Ezoo) and run BUILD.bat again."
     }
@@ -258,9 +253,9 @@ if (Test-Path $setup) {
     Write-Host "  >> Double-click  dist\MooDownloader-Setup.exe  to install Moo Downloader <<" -ForegroundColor Green
     Write-Host "     (Start Menu folder, desktop shortcut, starts with Windows, uninstall from Settings > Apps)"
 }
-if (Test-Path "$dist\version.json") {
+if (Test-Path "$dist\SHA256SUMS.txt") {
     Write-Host ""
-    Write-Host "Also in $dist : version.json (it goes into the GitHub release together with the setup)"
+    Write-Host "Also in $dist : SHA256SUMS.txt (it goes into the GitHub release together with the setup)"
 }
-Start-Process explorer.exe $dist
+Start-Process explorer.exe $dist -WindowStyle Hidden
 Read-Host "Press Enter to close"

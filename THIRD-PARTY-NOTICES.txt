@@ -7,17 +7,26 @@ yt-dlp - https://github.com/yt-dlp/yt-dlp
   The Unlicense (public domain).
 
 FFmpeg - https://github.com/FFmpeg/FFmpeg
-  The FFmpeg program in the "tools" folder is an unmodified build from
-  https://github.com/BtbN/FFmpeg-Builds licensed under the GNU General Public
-  License version 3 (see ffmpeg-LICENSE.txt in the "tools" folder).
-  Its source code is available at https://github.com/FFmpeg/FFmpeg.
+  The ffmpeg program in the "tools" folder is Ezoo Download's own small build
+  of the unmodified FFmpeg sources (version in ffmpeg-version.txt), made with
+  tools/ffmpeg/build.sh from the Ezoo Download sources. It is licensed under
+  the GNU Lesser General Public License version 3 or later (see
+  ffmpeg-LICENSE.txt in the "tools" folder).
 
-aria2 - https://github.com/aria2/aria2
-  The aria2c program in the "tools" folder (used for torrents) is an
-  unmodified release build licensed under the GNU General Public License
-  version 2 or later (see aria2-COPYING.txt in the "tools" folder). Its source
-  code is available at https://github.com/aria2/aria2.
+LAME - https://lame.sourceforge.io
+  Built into that ffmpeg program to make MP3 files. GNU Lesser General Public
+  License (see lame-COPYING.txt in the "tools" folder).
+
+OpenH264 - https://github.com/cisco/openh264
+  Built into that ffmpeg program for the exact cut of "Download a part of a
+  video" (the picture of the part is made again). BSD 2-Clause License (see
+  openh264-LICENSE.txt in the "tools" folder).
+
+librqbit - https://github.com/ikatson/rqbit
+  The torrent library built into the program (sharing, magnet links, DHT).
+  Apache License 2.0.
 
 Rust crates (tokio, reqwest, serde, chrono, tiny_http, arboard, rfd, tray-icon,
-regex, sha2, aes, cbc, url, directories, filetime and their dependencies)
-  MIT and/or Apache-2.0 licenses.
+regex, sha2, aes, cbc, url, directories, filetime, ring, native-tls,
+tokio-native-tls and their dependencies)
+  MIT, Apache-2.0 and/or ISC licenses.
