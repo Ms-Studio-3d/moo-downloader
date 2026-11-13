@@ -33,7 +33,7 @@ async function init() {
   });
 
   const look = document.getElementById("look");
-  chrome.storage.local.get({ bubbleStyle: "compact" }, (o) => (look.value = o.bubbleStyle || "compact"));
+  chrome.storage.local.get({ bubbleStyle: "dark" }, (o) => (look.value = o.bubbleStyle || "dark"));
   look.addEventListener("change", () => chrome.storage.local.set({ bubbleStyle: look.value }));
 
   // how solid the button is on the video (the mouse on it: always solid)

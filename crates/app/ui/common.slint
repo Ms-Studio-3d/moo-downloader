@@ -126,7 +126,7 @@ export struct SegView {
 // 0 Light, 1 Dark, 2 Ocean, 3 Midnight
 
 export global Theme {
-    in-out property <int> mode: 0;
+    in-out property <int> mode: 1;
     // themes: Light, Dark, Ocean blue, Midnight purple, Forest green, Black,
     // Sunset, Teal night, Rose, 3D, Aurora glass, Soft clay, Cyber neon
     out property <bool> dark: mode == 1 || mode == 3 || mode == 5 || mode == 7 || mode == 9 || mode == 10 || mode == 12;

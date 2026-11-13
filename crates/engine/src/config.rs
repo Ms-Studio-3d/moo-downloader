@@ -226,7 +226,7 @@ pub struct SiteLogin {
 pub const MAIN_QUEUE: u64 = 1;
 
 /// Bump when defaults change in a way old settings files should pick up.
-const SETTINGS_VERSION: u32 = 5;
+const SETTINGS_VERSION: u32 = 6;
 
 /// Columns of the download list that can be shown or hidden (View > Columns).
 pub const ALL_COLUMNS: [&str; 11] =
@@ -467,7 +467,7 @@ impl Default for Settings {
             min_split_kb: 256,
             schedule: Schedule::default(),
             show_progress_window: true,
-            theme: 0,
+            theme: 1,
             opacity: 100,
             font_scale: 100,
             font_family: String::new(),
@@ -594,6 +594,11 @@ impl Settings {
             // v5: watching the clipboard is off until the user turns it on
             // (it reads everything that is copied)
             s.clipboard_monitor = false;
+        }
+        if s.version < 6 && s.theme == 0 {
+            // Moo's Dark edition also replaces the earlier default Light
+            // look on upgrade. Later theme choices are saved as usual.
+            s.theme = 1;
         }
         s.version = SETTINGS_VERSION;
         if !s.queues.iter().any(|q| q.id == MAIN_QUEUE) {

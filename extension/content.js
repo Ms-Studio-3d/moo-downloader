@@ -269,7 +269,7 @@
   const OLD_SIZES = { small: 0.85, normal: 1, large: 1.25 };
   // its look: the add-in's menu > "Button style"
   const STYLES = ["compact", "blue", "dark", "light", "green", "icon"];
-  let look = "compact";
+  let look = "dark";
   const applyLook = () => {
     for (const b of bubbles.values()) {
       const w = b.root.querySelector(".wrap");
@@ -311,16 +311,16 @@
         bubbles.forEach((b) => placeOne(b));
       }
     });
-    chrome.storage.local.get({ bubbleScale: null, bubbleSize: "normal", bubbleStyle: "compact", bubbleOpacity: 0.9 }, (o) => {
+    chrome.storage.local.get({ bubbleScale: null, bubbleSize: "normal", bubbleStyle: "dark", bubbleOpacity: 0.9 }, (o) => {
       zoom = clampZoom(o && o.bubbleScale != null ? o.bubbleScale : OLD_SIZES[o && o.bubbleSize]);
       solid = clampSolid(o && o.bubbleOpacity);
-      look = STYLES.includes(o && o.bubbleStyle) ? o.bubbleStyle : "compact";
+      look = STYLES.includes(o && o.bubbleStyle) ? o.bubbleStyle : "dark";
       applyZoom();
       applyLook();
     });
     chrome.storage.onChanged.addListener((ch) => {
       if (ch.bubbleStyle) {
-        look = STYLES.includes(ch.bubbleStyle.newValue) ? ch.bubbleStyle.newValue : "compact";
+        look = STYLES.includes(ch.bubbleStyle.newValue) ? ch.bubbleStyle.newValue : "dark";
         applyLook();
         return;
       }
@@ -335,7 +335,7 @@
   }
   const STYLE = `
     :host { all: initial; }
-    .wrap { font: 11px/1.25 "Segoe UI", system-ui, sans-serif; color: #1f2733; display: inline-block; zoom: var(--z, 1); position: relative; }
+    .wrap { color-scheme: dark; font: 11px/1.25 "Segoe UI", system-ui, sans-serif; color: #e8eaed; display: inline-block; zoom: var(--z, 1); position: relative; }
     .btn { display: inline-flex; align-items: stretch; color: #fff; border: 1px solid #0f4fb5;
            background: linear-gradient(#3f8cf5, #1d63d6); border-radius: 3px;
            box-shadow: 0 1px 6px rgba(0,0,0,.35); font: inherit; font-weight: 600;
@@ -355,74 +355,74 @@
     /* the list floats under the button (the button never moves): to its
        left when the button is on the right of the video, else to its right,
        and above it when there is no room below */
-    .list { position: absolute; top: 100%; right: 0; width: 330px; margin-top: 4px; background: #fff; border-radius: 6px;
-            box-shadow: 0 6px 22px rgba(0,0,0,.28); overflow: hidden; max-height: 360px; overflow-y: auto; border: 1px solid #d5dbe4; }
+    .list { position: absolute; top: 100%; right: 0; width: 330px; margin-top: 4px; background: #1e1f22; border-radius: 6px;
+            box-shadow: 0 6px 22px rgba(0,0,0,.28); overflow: hidden; max-height: 360px; overflow-y: auto; border: 1px solid #626a77; }
     .wrap.toright .list { right: auto; left: 0; }
     .wrap.up .list { top: auto; bottom: 100%; margin-top: 0; margin-bottom: 4px; }
     .btn.locked { background: linear-gradient(#7b8794, #5b6573); border-color: #4a535f; }
-    .head { padding: 7px 10px; background: #f4f6fa; border-bottom: 1px solid #e3e8ef; font-weight: 600; color: #334;
+    .head { padding: 7px 10px; background: #26282c; border-bottom: 1px solid #3a3d42; font-weight: 600; color: #e8eaed;
             overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .item { padding: 6px 10px; cursor: default; border-bottom: 1px solid #eef1f5; display: flex; gap: 6px; }
+    .item { padding: 6px 10px; cursor: default; border-bottom: 1px solid #3a3d42; display: flex; gap: 6px; }
     .item:last-child { border-bottom: 0; }
-    .item:hover { background: #e8f0fe; }
-    .num { color: #6b7686; min-width: 16px; text-align: right; }
+    .item:hover { background: #264567; }
+    .num { color: #b0b6c0; min-width: 16px; text-align: right; }
     .body { flex: 1; min-width: 0; }
     .t { font-weight: 600; display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
-    .s { color: #6b7686; font-size: 10.5px; overflow-wrap: anywhere; }
+    .s { color: #b0b6c0; font-size: 10.5px; overflow-wrap: anywhere; }
     .tag { font-size: 9.5px; font-weight: 700; padding: 0 4px; border-radius: 3px; color: #fff; background: #7b8794; line-height: 14px; }
     .tag.HD { background: #1d8f5a; } .tag.FullHD { background: #1d63d6; } .tag.K2 { background: #7b3fd6; }
     .tag.K4 { background: #d6631d; } .tag.K8 { background: #c0262d; }
-    .codec { font-size: 9.5px; color: #4a5566; border: 1px solid #c9d1dc; border-radius: 3px; padding: 0 3px; line-height: 13px; }
-    .all { font-weight: 700; color: #1d63d6; }
-    .msg { padding: 8px 10px; color: #1a9e5a; }
-    .help { padding: 8px 10px; color: #334; background: #fffbe6; border-bottom: 1px solid #f0e2a8; }
+    .codec { font-size: 9.5px; color: #b0b6c0; border: 1px solid #626a77; border-radius: 3px; padding: 0 3px; line-height: 13px; }
+    .all { font-weight: 700; color: #85b6ff; }
+    .msg { padding: 8px 10px; color: #55d58c; }
+    .help { padding: 8px 10px; color: #e8eaed; background: #3a301c; border-bottom: 1px solid #65502a; }
     .act { margin-top: 6px; display: inline-block; background: #1d63d6; color: #fff; border-radius: 4px; padding: 3px 9px; cursor: default; }
     .act:hover { background: #1a56b8; }
     .off { cursor: default; opacity: .7; }
-    .off:hover { background: #fff; }
-    .err { color: #d1342f; }
+    .off:hover { background: #1e1f22; }
+    .err { color: #ff8a80; }
     /* "Download a part" */
-    .clip { padding: 8px 10px; border-bottom: 1px solid #e3e8ef; background: #fafbfd; }
+    .clip { padding: 8px 10px; border-bottom: 1px solid #3a3d42; background: #26282c; }
     .clip .row { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
     .clip .row b { min-width: 34px; font-weight: 600; }
-    .clip input[type=text] { width: 76px; font: inherit; padding: 3px 5px; border: 1px solid #c9d1dc; border-radius: 4px; color: #1f2733; background: #fff; }
-    .clip input.bad { border-color: #d1342f; }
-    .clip .now, .clip .btn2 { background: #e8f0fe; color: #1d63d6; border-radius: 4px; padding: 3px 8px; cursor: default; white-space: nowrap; }
-    .clip .now:hover, .clip .btn2:hover { background: #d6e4fd; }
-    .clip .len { color: #334; margin-bottom: 6px; }
+    .clip input[type=text] { width: 76px; font: inherit; padding: 3px 5px; border: 1px solid #626a77; border-radius: 4px; color: #e8eaed; background: #1e1f22; }
+    .clip input.bad { border-color: #ff8a80; }
+    .clip .now, .clip .btn2 { background: #264567; color: #85b6ff; border-radius: 4px; padding: 3px 8px; cursor: default; white-space: nowrap; }
+    .clip .now:hover, .clip .btn2:hover { background: #2c527b; }
+    .clip .len { color: #e8eaed; margin-bottom: 6px; }
     .clip label { display: flex; gap: 6px; align-items: flex-start; margin: 4px 0; cursor: default; }
     .clip label input { margin: 2px 0 0; flex: none; }
-    .clip label small { display: block; color: #6b7686; font-size: 10.5px; }
+    .clip label small { display: block; color: #b0b6c0; font-size: 10.5px; }
     .clip .acts { display: flex; gap: 6px; margin-top: 6px; }
-    .clip .pick { margin-top: 8px; font-weight: 600; color: #334; }
-    .cliprow .t { color: #1d63d6; }
+    .clip .pick { margin-top: 8px; font-weight: 600; color: #e8eaed; }
+    .cliprow .t { color: #85b6ff; }
     /* "⬇ Whole video" / "✂ Part" (the part in orange) */
-    .tabs { display: flex; border-bottom: 1px solid #e3e8ef; background: #f4f6fa; }
-    .tab { flex: 1; text-align: center; padding: 7px 4px; cursor: default; color: #5b6575; font-weight: 600; border-bottom: 3px solid transparent; }
-    .tab:hover { background: #eef2f8; }
-    .tab.on { color: #1d63d6; border-bottom-color: #1d63d6; background: #fff; }
-    .tab.part.on { color: #e8590c; border-bottom-color: #e8590c; }
-    .cut { padding: 9px 12px 11px; background: #fff; }
-    .cut .lead { color: #e8590c; font-weight: 700; margin-bottom: 8px; }
+    .tabs { display: flex; border-bottom: 1px solid #3a3d42; background: #26282c; }
+    .tab { flex: 1; text-align: center; padding: 7px 4px; cursor: default; color: #b0b6c0; font-weight: 600; border-bottom: 3px solid transparent; }
+    .tab:hover { background: #343b46; }
+    .tab.on { color: #85b6ff; border-bottom-color: #85b6ff; background: #1e1f22; }
+    .tab.part.on { color: #ffb477; border-bottom-color: #ffb477; }
+    .cut { padding: 9px 12px 11px; background: #1e1f22; }
+    .cut .lead { color: #ffb477; font-weight: 700; margin-bottom: 8px; }
     .cut .times { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
-    .cut .times b { font-weight: 700; color: #1f2733; }
-    .cut input[type=text] { width: 58px; font: inherit; text-align: center; padding: 3px 4px; border: 1px solid #c9d1dc; border-radius: 4px; color: #1f2733; background: #fff; }
-    .cut input.bad { border-color: #d1342f; }
-    .cut .now { color: #e8590c; cursor: default; white-space: nowrap; font-size: 10.5px; }
+    .cut .times b { font-weight: 700; color: #e8eaed; }
+    .cut input[type=text] { width: 58px; font: inherit; text-align: center; padding: 3px 4px; border: 1px solid #626a77; border-radius: 4px; color: #e8eaed; background: #1e1f22; }
+    .cut input.bad { border-color: #ff8a80; }
+    .cut .now { color: #ffb477; cursor: default; white-space: nowrap; font-size: 10.5px; }
     .cut .now:hover { text-decoration: underline; }
-    .cut .len { margin-left: auto; font-weight: 700; color: #1f2733; }
-    .cut .len.err { color: #d1342f; }
-    .cut .seg { display: inline-flex; border: 1px solid #e8590c; border-radius: 4px; overflow: hidden; margin-bottom: 8px; }
-    .cut .seg span { padding: 3px 10px; color: #e8590c; cursor: default; background: #fff; }
-    .cut .seg span + span { border-left: 1px solid #e8590c; }
-    .cut .seg span.on { background: #e8590c; color: #fff; }
+    .cut .len { margin-left: auto; font-weight: 700; color: #e8eaed; }
+    .cut .len.err { color: #ff8a80; }
+    .cut .seg { display: inline-flex; border: 1px solid #ffb477; border-radius: 4px; overflow: hidden; margin-bottom: 8px; }
+    .cut .seg span { padding: 3px 10px; color: #ffb477; cursor: default; background: #1e1f22; }
+    .cut .seg span + span { border-left: 1px solid #ffb477; }
+    .cut .seg span.on { background: #ffb477; color: #241407; }
     .cut .qs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
-    .cut .qs span { padding: 3px 9px; border: 1px solid #c9d1dc; border-radius: 4px; color: #1f2733; cursor: default; background: #fff; font-weight: 600; }
-    .cut .qs span:hover { border-color: #e8590c; }
-    .cut .qs span.on { border-color: #e8590c; background: #fff3eb; color: #e8590c; }
+    .cut .qs span { padding: 3px 9px; border: 1px solid #626a77; border-radius: 4px; color: #e8eaed; cursor: default; background: #1e1f22; font-weight: 600; }
+    .cut .qs span:hover { border-color: #ffb477; }
+    .cut .qs span.on { border-color: #ffb477; background: #3b2b20; color: #ffb477; }
     .cut .acts { display: flex; gap: 8px; }
-    .cut .pv { padding: 6px 10px; border-radius: 5px; background: #fff3eb; color: #e8590c; cursor: default; white-space: nowrap; }
-    .cut .pv:hover { background: #ffe4d2; }
+    .cut .pv { padding: 6px 10px; border-radius: 5px; background: #3b2b20; color: #ffb477; cursor: default; white-space: nowrap; }
+    .cut .pv:hover { background: #513727; }
     .cut .go { flex: 1; text-align: center; padding: 6px 10px; border-radius: 5px; color: #fff; font-weight: 700; cursor: default;
                background: linear-gradient(#f57a2e, #e05a0c); box-shadow: 0 2px 6px rgba(224,90,12,.35); }
     .cut .go:hover { background: linear-gradient(#ff8a3d, #e8630f); }

@@ -114,6 +114,7 @@ const EXTENSION_FILES: &[(&str, &[u8])] = &[
     ("popup.js", include_bytes!("../../../extension/popup.js")),
     ("options.html", include_bytes!("../../../extension/options.html")),
     ("options.js", include_bytes!("../../../extension/options.js")),
+    ("dark.css", include_bytes!("../../../extension/dark.css")),
     ("icons/icon16.png", include_bytes!("../../../extension/icons/icon16.png")),
     ("icons/icon32.png", include_bytes!("../../../extension/icons/icon32.png")),
     ("icons/icon48.png", include_bytes!("../../../extension/icons/icon48.png")),
