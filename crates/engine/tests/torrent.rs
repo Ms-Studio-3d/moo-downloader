@@ -321,6 +321,14 @@ async fn only_the_checked_files_of_a_torrent() {
     // its own size, not the pieces it shares with the other file
     assert_eq!(total, Some(b.len() as u64));
     assert_eq!(std::fs::read(get.join("pack/b.bin")).unwrap(), b);
+    // Completion starts the asynchronous stop-sharing/cleanup task. Wait
+    // for that task instead of racing it as soon as Completed is visible.
+    for _ in 0..50 {
+        if !get.join("pack/a.bin").exists() {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
     assert!(!get.join("pack/a.bin").exists(), "the unchecked file is not kept");
     seeder.forget(&sg).await;
     let _ = std::fs::remove_dir_all(&root);
@@ -401,6 +409,9 @@ async fn unsafe_names_files_changed_while_running_and_its_magnet() {
     }
     let seeder = Torrents::new(&root.join("a"));
     let sg = seeder.add(tfile.to_str().unwrap(), &AddOptions { dir: seed.clone(), ..Default::default() }).await.unwrap();
+    let paths: Vec<_> = seeder.files(&sg).await.unwrap().into_iter().map(|f| f.path).collect();
+    let expected_paths: Vec<_> = safe.iter().map(|(_, rel)| seed.join(rel)).collect();
+    assert_eq!(paths, expected_paths, "disk paths must match the sanitized names shown to the user");
     assert!(complete(&seeder, &sg, 30).await, "the safe names are the ones it reads too");
     // slowly, so the change below comes while it runs
     seeder.set_limits(0, 40 * 1024).await;

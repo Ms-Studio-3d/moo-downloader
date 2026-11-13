@@ -1035,30 +1035,32 @@ mod refused_tests {
     #[tokio::test]
     async fn a_link_for_the_ipv4_address_is_asked_over_ipv4() {
         use tokio::io::{AsyncReadExt, AsyncWriteExt};
-        let Ok(listener) = tokio::net::TcpListener::bind("[::]:0").await else { return };
-        let port = listener.local_addr().unwrap().port();
-        // no IPv6 here, or "localhost" is IPv4 only: nothing to see
-        if tokio::net::TcpStream::connect(("::1", port)).await.is_err() {
-            return;
+        // Windows does not accept IPv4 on an IPv6 listener by default.
+        // Bind each family explicitly so the IPv4 fallback has a server.
+        let ipv4 = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = ipv4.local_addr().unwrap().port();
+        let Ok(ipv6) = tokio::net::TcpListener::bind(("::1", port)).await else { return };
+        for (listener, v4) in [(ipv4, true), (ipv6, false)] {
+            tokio::spawn(async move {
+                loop {
+                    let (mut s, _) = listener.accept().await.unwrap();
+                    let mut buf = [0u8; 2048];
+                    let _ = s.read(&mut buf).await;
+                    let answer = if v4 {
+                        "HTTP/1.1 206 Partial Content\r\nContent-Range: bytes 0-9/10\r\nContent-Length: 10\r\nConnection: close\r\n\r\n0123456789"
+                    } else {
+                        "HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+                    };
+                    let _ = s.write_all(answer.as_bytes()).await;
+                }
+            });
         }
-        tokio::spawn(async move {
-            loop {
-                let (mut s, from) = listener.accept().await.unwrap();
-                let v4 = match from.ip() {
-                    std::net::IpAddr::V4(_) => true,
-                    std::net::IpAddr::V6(a) => a.to_ipv4_mapped().is_some(),
-                };
-                let mut buf = [0u8; 2048];
-                let _ = s.read(&mut buf).await;
-                let answer = if v4 {
-                    "HTTP/1.1 206 Partial Content\r\nContent-Range: bytes 0-9/10\r\nContent-Length: 10\r\nConnection: close\r\n\r\n0123456789"
-                } else {
-                    "HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
-                };
-                let _ = s.write_all(answer.as_bytes()).await;
-            }
-        });
-        let client = build_client_with(&ProxyConfig::default()).unwrap();
+        // Force the first request over IPv6, independently of the OS's DNS
+        // preference. The fallback client must resolve localhost over IPv4.
+        let _ = build_client_with(&ProxyConfig::default()).unwrap();
+        V4_HOSTS.lock_ok().remove("localhost");
+        let ipv6_addr = (std::net::Ipv6Addr::LOCALHOST, port).into();
+        let client = Client::builder().no_proxy().resolve("localhost", ipv6_addr).build().unwrap();
         let url = format!("http://[::1]:{port}/v.mp4");
         // over IPv6 the server refuses; the program asks again over IPv4...
         // ([::1] has no IPv4 address: it is refused, as it should be)
@@ -1067,7 +1069,9 @@ mod refused_tests {
         let p = probe_patient(&client, &url, &RequestHeaders::default(), "UA", &[]).await.unwrap();
         assert_eq!(p.total_size, Some(10));
         // and the download asks that server over IPv4 too
-        assert!(V4_HOSTS.lock_ok().contains("localhost") || p.total_size == Some(10));
+        assert!(V4_HOSTS.lock_ok().contains("localhost"));
+        let resp = client_for(&client, &url).get(&url).send_ordered().await.unwrap();
+        assert_eq!(resp.status(), StatusCode::PARTIAL_CONTENT);
     }
 
     /// A site that refuses a fresh link for a moment (403), then gives it.

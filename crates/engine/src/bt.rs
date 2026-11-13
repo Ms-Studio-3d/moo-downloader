@@ -41,18 +41,21 @@ pub fn disk_paths(metadata: &TorrentMetadata) -> Vec<Option<PathBuf>> {
     let many = info.files.is_some();
     let top = metadata.info.name().map(|n| safe_part(&n)).unwrap_or_else(|| "torrent".into());
     metadata
-        .file_infos
-        .iter()
+        .info
+        .iter_file_details()
         .map(|f| {
-            if f.attrs.padding {
+            if f.attrs().padding {
                 return None;
             }
             let mut p = PathBuf::new();
             if many {
                 p.push(&top);
             }
-            for part in f.relative_filename.iter() {
-                p.push(safe_part(&part.to_string_lossy()));
+            // Sanitize the original torrent components before PathBuf sees
+            // them. Windows otherwise treats a name such as a:b?.bin as
+            // a drive prefix plus a second component, changing its safe name.
+            for part in f.filename.iter_components() {
+                p.push(safe_part(&part));
             }
             Some(p)
         })

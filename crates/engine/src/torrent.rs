@@ -185,7 +185,9 @@ pub fn stays_inside(path: &Path, dir: &Path) -> bool {
     // "dir/./name" as aria2 writes it; a path given from the folder
     let clean = |p: &Path| p.components().filter(|c| !matches!(c, Component::CurDir)).collect::<PathBuf>();
     let (path, dir) = (clean(path), clean(dir));
-    let rel = if path.is_absolute() {
+    // On Windows, /dir/file has a root without a drive prefix, so it is
+    // rooted even though is_absolute() is false.
+    let rel = if path.has_root() {
         match path.strip_prefix(&dir) {
             Ok(r) => r.to_path_buf(),
             Err(_) => return false,
@@ -491,6 +493,15 @@ mod tests {
         assert!(!stays_inside(Path::new("/d/../e.txt"), Path::new("/d")));
         assert!(!stays_inside(Path::new("/e/x"), Path::new("/d")));
         assert!(stays_inside(Path::new("/d/./a/b"), Path::new("/d/")));
+        assert!(stays_inside(Path::new("a/b.txt"), Path::new("/d")));
+        assert!(!stays_inside(Path::new("../b.txt"), Path::new("/d")));
+        assert!(!stays_inside(Path::new("/different/b.txt"), Path::new("/d")));
+        #[cfg(windows)]
+        {
+            assert!(stays_inside(Path::new(r"C:\d\a\b.txt"), Path::new(r"C:\d")));
+            assert!(!stays_inside(Path::new(r"D:\d\b.txt"), Path::new(r"C:\d")));
+            assert!(!stays_inside(Path::new(r"C:relative.txt"), Path::new(r"C:\d")));
+        }
     }
 
     #[test]
