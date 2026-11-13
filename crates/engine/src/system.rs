@@ -21,7 +21,8 @@ pub fn check_room(dir: &Path, needed: u64, total: Option<u64>) -> Result<(), Str
         // keep a little air for the file system
         if needed > 0 && free < needed.saturating_add(16 * 1024 * 1024) {
             return Err(format!(
-                "Not enough free space on the disk: the file needs {} more, only {} free.",
+                "Not enough free space on the disk {}: the file needs {} more, only {} free.",
+                disk_name(&dir),
                 crate::fmt_size(needed),
                 crate::fmt_size(free)
             ));
@@ -39,6 +40,14 @@ pub fn check_room(dir: &Path, needed: u64, total: Option<u64>) -> Result<(), Str
         }
     }
     Ok(())
+}
+
+/// "C:" for C:\\Users\\x\\Downloads, else the folder itself.
+pub fn disk_name(dir: &Path) -> String {
+    match dir.components().next() {
+        Some(std::path::Component::Prefix(p)) => p.as_os_str().to_string_lossy().into_owned(),
+        _ => dir.display().to_string(),
+    }
 }
 
 fn existing_parent(dir: &Path) -> std::path::PathBuf {
@@ -174,6 +183,21 @@ pub fn power(action: AfterDone, force: bool) {
     imp::power(action, force)
 }
 
+/// Seconds since the mouse or the keyboard was last used (None: unknown).
+pub fn idle_secs() -> Option<u64> {
+    imp::idle_secs()
+}
+
+/// A wake-up of the computer from sleep at a set time, while it is kept.
+pub struct Waker(#[allow(dead_code)] imp::WakeHandle);
+
+impl Waker {
+    /// Wake the computer at `at` (Windows' "Allow wake timers" must be on).
+    pub fn at(at: chrono::DateTime<chrono::Utc>) -> Option<Waker> {
+        imp::wake_at(at).map(Waker)
+    }
+}
+
 #[cfg(windows)]
 mod imp {
     use super::AfterDone;
@@ -241,6 +265,44 @@ mod imp {
             _ => {}
         }
     }
+
+    pub fn idle_secs() -> Option<u64> {
+        use windows_sys::Win32::System::SystemInformation::GetTickCount;
+        use windows_sys::Win32::UI::Input::KeyboardAndMouse::{GetLastInputInfo, LASTINPUTINFO};
+        let mut info = LASTINPUTINFO { cbSize: std::mem::size_of::<LASTINPUTINFO>() as u32, dwTime: 0 };
+        // SAFETY: a plain structure of the right size
+        if unsafe { GetLastInputInfo(&mut info) } == 0 {
+            return None;
+        }
+        let now = unsafe { GetTickCount() };
+        Some(u64::from(now.wrapping_sub(info.dwTime)) / 1000)
+    }
+
+    /// A waitable timer that wakes the computer; closed when dropped.
+    pub struct WakeHandle(windows_sys::Win32::Foundation::HANDLE);
+    // SAFETY: a kernel handle, only closed once (Drop)
+    unsafe impl Send for WakeHandle {}
+    unsafe impl Sync for WakeHandle {}
+    impl Drop for WakeHandle {
+        fn drop(&mut self) {
+            unsafe { windows_sys::Win32::Foundation::CloseHandle(self.0) };
+        }
+    }
+
+    pub fn wake_at(at: chrono::DateTime<chrono::Utc>) -> Option<WakeHandle> {
+        use windows_sys::Win32::System::Threading::{CreateWaitableTimerW, SetWaitableTimer};
+        // 100 ns steps since 1601 (positive: a time of the clock, not a wait)
+        let due: i64 = (at.timestamp() + 11_644_473_600) * 10_000_000;
+        // SAFETY: no name, no security attributes; the handle is closed by WakeHandle
+        let h = unsafe { CreateWaitableTimerW(std::ptr::null(), 1, std::ptr::null()) };
+        if h.is_null() {
+            return None;
+        }
+        let handle = WakeHandle(h);
+        // the last 1: wake the computer when it comes
+        let ok = unsafe { SetWaitableTimer(h, &due, 0, None, std::ptr::null(), 1) };
+        (ok != 0).then_some(handle)
+    }
 }
 
 #[cfg(not(windows))]
@@ -254,6 +316,13 @@ mod imp {
         None
     }
     pub fn power(_action: AfterDone, _force: bool) {}
+    pub fn idle_secs() -> Option<u64> {
+        None
+    }
+    pub struct WakeHandle;
+    pub fn wake_at(_at: chrono::DateTime<chrono::Utc>) -> Option<WakeHandle> {
+        None
+    }
 }
 
 #[cfg(test)]

@@ -49,6 +49,12 @@ msgstr "Descargar todos o algunos vídeos de una lista de reproducción."
 msgid "Download a .torrent file or a magnet link."
 msgstr "Descargar un archivo .torrent o un enlace magnet."
 
+msgid "Move to queue"
+msgstr "Mover a la cola"
+
+msgid "Delete from queue"
+msgstr "Quitar de la cola"
+
 msgid "{} downloads selected"
 msgstr "{} descargas seleccionadas"
 
@@ -63,6 +69,9 @@ msgstr "Abrir con…"
 
 msgid "Play while downloading"
 msgstr "Reproducir mientras se descarga"
+
+msgid "Download a part of it…"
+msgstr "Descargar una parte…"
 
 msgid "Open folder"
 msgstr "Abrir carpeta"
@@ -81,12 +90,6 @@ msgstr "Actualizar la dirección de descarga…"
 
 msgid "Move / Rename…"
 msgstr "Mover / Renombrar…"
-
-msgid "Move to queue"
-msgstr "Mover a la cola"
-
-msgid "Delete from queue"
-msgstr "Quitar de la cola"
 
 msgid "Copy address"
 msgstr "Copiar dirección"
@@ -180,6 +183,9 @@ msgstr "Ejecutar el capturador de sitios…"
 
 msgid "Download a playlist…"
 msgstr "Descargar una lista de reproducción…"
+
+msgid "Download a part of a video…"
+msgstr "Descargar una parte de un vídeo…"
 
 msgid "Add a torrent / magnet link…"
 msgstr "Añadir un torrent / enlace magnet…"
@@ -340,6 +346,18 @@ msgstr "Noche turquesa"
 msgid "Rose"
 msgstr "Rosa"
 
+msgid "3D"
+msgstr "3D"
+
+msgid "Aurora glass"
+msgstr "Cristal aurora"
+
+msgid "Soft clay"
+msgstr "Arcilla suave"
+
+msgid "Cyber neon"
+msgstr "Neón cyber"
+
 msgid "Appearance…"
 msgstr "Apariencia…"
 
@@ -465,6 +483,12 @@ msgstr "Recordar esta ruta para la categoría \"{}\""
 
 msgid "optional note"
 msgstr "nota opcional"
+
+msgid "Checksum"
+msgstr "Suma de comprobación"
+
+msgid "MD5 / SHA-1 / SHA-256 (optional)"
+msgstr "MD5 / SHA-1 / SHA-256 (opcional)"
 
 msgid "Use authorization"
 msgstr "Usar autorización"
@@ -592,11 +616,35 @@ msgstr "Mostrar la ventana \"Descarga completada\""
 msgid "You get 30 seconds to cancel before the computer shuts down, sleeps or hibernates."
 msgstr "Tiene 30 segundos para cancelar antes de que el equipo se apague, se suspenda o hiberne."
 
+msgid "Files"
+msgstr "Archivos"
+
+msgid "People"
+msgstr "Pares"
+
+msgid "Trackers"
+msgstr "Trackers"
+
+msgid "Add tracker"
+msgstr "Añadir tracker"
+
+msgid "First and last pieces first"
+msgstr "Primeras y últimas piezas primero"
+
+msgid "Check the files again"
+msgstr "Volver a comprobar los archivos"
+
+msgid "Copy magnet link"
+msgstr "Copiar enlace magnet"
+
 msgid "<< Hide details"
 msgstr "<< Ocultar detalles"
 
 msgid "Show details >>"
 msgstr "Mostrar detalles >>"
+
+msgid "Next to the clock"
+msgstr "Junto al reloj"
 
 msgid "Pause"
 msgstr "Pausa"
@@ -613,8 +661,8 @@ msgstr "N.º"
 msgid "Info"
 msgstr "Info"
 
-msgid "Hide next to the clock"
-msgstr "Ocultar junto al reloj"
+msgid "Drag me"
+msgstr "Arrástrame"
 
 msgid "Download complete"
 msgstr "Descarga completada"
@@ -733,6 +781,12 @@ msgstr "Si está terminado mostrarlo, si no reanudarlo"
 msgid "Remember my choice (Options > Downloads)"
 msgstr "Recordar mi elección (Opciones > Descargas)"
 
+msgid "Delete the downloaded files from the disk too (be careful)"
+msgstr "Borrar también los archivos descargados del disco (cuidado)"
+
+msgid "Don't show this question again"
+msgstr "No volver a mostrar esta pregunta"
+
 msgid "All downloads are finished."
 msgstr "Todas las descargas han terminado."
 
@@ -783,6 +837,9 @@ msgstr "Sáb"
 
 msgid "Sun"
 msgstr "Dom"
+
+msgid "Wake the computer from sleep to start it"
+msgstr "Despertar el ordenador de la suspensión para iniciarla"
 
 msgid "Start the queue when Moo Downloader starts"
 msgstr "Iniciar la cola cuando se abra Moo Downloader"
@@ -840,6 +897,9 @@ msgstr "https://example.com/gallery/"
 
 msgid "Start exploring"
 msgstr "Empezar a explorar"
+
+msgid "Some pages make their links only in the browser (with scripts, or as plain text). For them: open the page in the browser, right-click it and choose \"Download all links with Moo Downloader\": every link you see there is collected."
+msgstr "Algunas páginas crean sus enlaces solo en el navegador (con scripts o como texto). Para ellas: abre la página en el navegador, haz clic derecho y elige \"Download all links with Moo Downloader\": se recoge cada enlace que ves."
 
 msgid "Get"
 msgstr "Obtener"
@@ -1033,6 +1093,9 @@ msgstr "Vigilar el portapapeles en busca de enlaces de descarga"
 msgid "Automatically start downloading links placed in the clipboard"
 msgstr "Iniciar automáticamente los enlaces copiados al portapapeles"
 
+msgid "Draw the windows with the graphics card (uses more memory; after a restart)"
+msgstr "Dibujar las ventanas con la tarjeta gráfica (más memoria; tras reiniciar)"
+
 msgid "Show \"Tip of the day\" at startup"
 msgstr "Mostrar el \"Consejo del día\" al iniciar"
 
@@ -1125,6 +1188,18 @@ msgstr "Mostrar la ventana \"Información del archivo\" para las descargas del n
 
 msgid "Start downloading immediately while showing \"Download File Info\""
 msgstr "Empezar a descargar en seguida mientras se muestra \"Información del archivo\""
+
+msgid "For a playlist or several files added together: one window for each file (not one at the end)"
+msgstr "Para una lista de reproducción o varios archivos añadidos juntos: una ventana por archivo (no una sola al final)"
+
+msgid "Ask before removing downloads from the list"
+msgstr "Preguntar antes de quitar descargas de la lista"
+
+msgid "Quality of MP3 files"
+msgstr "Calidad de los archivos MP3"
+
+msgid "Download the subtitles of videos too, in these languages:"
+msgstr "Descargar también los subtítulos de los vídeos, en estos idiomas:"
 
 msgid "Show the download progress window"
 msgstr "Mostrar la ventana de progreso"
@@ -1282,14 +1357,29 @@ msgstr "Activar el limitador de velocidad"
 msgid "Always turn on the speed limiter when Moo Downloader starts"
 msgstr "Activar siempre el limitador al iniciar Moo Downloader"
 
+msgid "Limit only while I use the computer (full speed after a minute without the mouse or keyboard)"
+msgstr "Limitar solo mientras uso el ordenador (velocidad completa tras un minuto sin ratón ni teclado)"
+
 msgid "Every download can also have its own limit: its progress window > Speed Limiter tab."
 msgstr "Cada descarga puede tener también su propio límite: su ventana de progreso > pestaña Limitador de velocidad."
+
+msgid "Make Moo Downloader the main program for torrents"
+msgstr "Hacer de Moo Downloader el programa principal para torrents"
+
+msgid "On: magnet links and .torrent files open in Moo Downloader, from the browser and from Windows. Off: they stay with the browser and your own torrent program."
+msgstr "Activado: los enlaces magnet y los archivos .torrent se abren en Moo Downloader, desde el navegador y desde Windows. Desactivado: se quedan con el navegador y tu propio programa de torrents."
 
 msgid "Keep sharing a finished torrent for (minutes)"
 msgstr "Seguir compartiendo un torrent terminado durante (minutos)"
 
 msgid "0 = stop as soon as all files are here. Sharing longer helps the others who download the same torrent."
 msgstr "0 = parar en cuanto lleguen todos los archivos. Compartir más tiempo ayuda a quienes descargan el mismo torrent."
+
+msgid "Stop sharing once it sent (times what it received)"
+msgstr "Dejar de compartir tras enviar (veces lo recibido)"
+
+msgid "No limit"
+msgstr "Sin límite"
 
 msgid "Maximum upload speed (KB/s, 0 = no limit)"
 msgstr "Velocidad máxima de subida (KB/s, 0 = sin límite)"
@@ -1378,6 +1468,9 @@ msgstr "Archivos a la vez"
 msgid "Number the files"
 msgstr "Numerar los archivos"
 
+msgid "Subtitles too"
+msgstr "También subtítulos"
+
 msgid "Not installed on this computer"
 msgstr "No instalado en este equipo"
 
@@ -1390,6 +1483,12 @@ msgstr "Haga clic en su navegador:"
 msgid "Almost done:"
 msgstr "Casi listo:"
 
+msgid "Test the link"
+msgstr "Probar la conexión"
+
+msgid "Repair the add-in"
+msgstr "Reparar el complemento"
+
 msgid "Copy folder path"
 msgstr "Copiar la ruta de la carpeta"
 
@@ -1399,17 +1498,95 @@ msgstr "Versión {}"
 msgid "Coded by Ahmed Ezzat"
 msgstr "Programado por Ahmed Ezzat"
 
+msgid "Official download page (GitHub)"
+msgstr "Página oficial de descarga (GitHub)"
+
+msgid "Download Moo Downloader only from its official page."
+msgstr "Descarga Moo Downloader solo desde su página oficial."
+
+msgid "© Ezoo Tech – All rights reserved"
+msgstr "© Ezoo Tech – Todos los derechos reservados"
+
 msgid "Like Moo Downloader? You can support its development:"
 msgstr "¿Le gusta Moo Downloader? Puede apoyar su desarrollo:"
 
 msgid "Support with PayPal"
 msgstr "Apoyar con PayPal"
 
+msgid "Support with InstaPay"
+msgstr "Apoyar con InstaPay"
+
+msgid "InstaPay: a7medek@instapay (scan the code with your bank's app)"
+msgstr "InstaPay: a7medek@instapay (escanea el código con la app de tu banco)"
+
+msgid "Download a part of a video"
+msgstr "Descargar una parte de un vídeo"
+
+msgid "Paste the address of the video (its page, or a link to the video or stream):"
+msgstr "Pega la dirección del vídeo (su página, o un enlace al vídeo o a la transmisión):"
+
+msgid "Looking…"
+msgstr "Buscando…"
+
+msgid "Get the video"
+msgstr "Obtener el vídeo"
+
+msgid "Quality:"
+msgstr "Calidad:"
+
+msgid "From:"
+msgstr "Desde:"
+
+msgid "To:"
+msgstr "Hasta:"
+
+msgid "Length:"
+msgstr "Duración:"
+
+msgid "Cut:"
+msgstr "Corte:"
+
+msgid "Quick cut (recommended)"
+msgstr "Corte rápido (recomendado)"
+
+msgid "Exact cut"
+msgstr "Corte exacto"
+
+msgid "Quick cut"
+msgstr "Corte rápido"
+
+msgid "Takes seconds and keeps the quality exactly as it is (nothing is made again). A video can only start on a whole picture, so the part may start a second or two before the time you chose."
+msgstr "Tarda segundos y mantiene la calidad tal cual (no se rehace nada). Un vídeo solo puede empezar en una imagen completa, así que la parte puede empezar uno o dos segundos antes del tiempo elegido."
+
+msgid "Starts and ends on the very second you chose. The picture of the part is made again, so it takes longer (about as long as the part plays, or less) and works the processor. Sound alone is always cut exactly."
+msgstr "Empieza y termina en el segundo exacto que elegiste. La imagen de la parte se vuelve a crear, así que tarda más (más o menos lo que dura la parte, o menos) y usa el procesador. El sonido solo siempre se corta exacto."
+
+msgid "Preparing the preview…"
+msgstr "Preparando la vista previa…"
+
+msgid "Preview the part"
+msgstr "Ver la parte"
+
+msgid "Download the part"
+msgstr "Descargar la parte"
+
+msgid "Support Moo Downloader"
+msgstr "Apoyar Moo Downloader"
+
+msgid "Did Moo Downloader save you time?"
+msgstr "¿Moo Downloader te ahorró tiempo?"
+
+msgid "It is free and has no ads. If you like, you can support its development with any amount."
+msgstr "Es gratis y no tiene anuncios. Si quieres, puedes apoyar su desarrollo con cualquier cantidad."
+
+msgid "Not now"
+msgstr "Ahora no"
+
 msgid "What's new in Moo Downloader"
 msgstr "Novedades de Moo Downloader"
 
-msgid "Moo Downloader is free and has no ads. If it helps you and you would like to support its development, you can send a gift with PayPal. Thank you!"
-msgstr "Moo Downloader es gratis y sin anuncios. Si te sirve y quieres apoyar su desarrollo, puedes enviar un aporte con PayPal. ¡Gracias!"
+msgid "Moo Downloader is free and has no ads. If it helps you and you would like to support its development, you can send a gift with PayPal or InstaPay. Thank you!"
+msgstr "Moo Downloader es gratis y sin anuncios. Si te sirve y quieres apoyar su desarrollo, puedes enviar un regalo con PayPal o InstaPay. ¡Gracias!"
 
 msgid "Hide"
 msgstr "Ocultar"

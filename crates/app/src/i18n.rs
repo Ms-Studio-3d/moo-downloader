@@ -46,6 +46,11 @@ pub fn current() -> &'static str {
     LANGS[CURRENT.load(Ordering::Relaxed) % LANGS.len()].0
 }
 
+/// The windows read from right to left (Arabic).
+pub fn is_rtl() -> bool {
+    current() == "ar"
+}
+
 #[allow(dead_code)]
 pub fn is_arabic() -> bool {
     current() == "ar"
@@ -206,6 +211,15 @@ const AR: &[(&str, &str)] = &[
     ),
     ("Give the category a name", "اكتب اسماً للتصنيف"),
     ("A category with this name already exists", "يوجد تصنيف بهذا الاسم بالفعل"),
+    ("The add-in talks to the program directly, without a port: no more \"Moo Downloader is not running\" while it runs, and a closed program is opened for a download.", "الإضافة تتكلم مع البرنامج مباشرة بدون منفذ: لم تعد تظهر رسالة \"Moo Downloader is not running\" والبرنامج يعمل، والبرنامج المغلق يُفتح من أجل التحميل."),
+    ("A power cut no longer loses the download list, the end of a download is never held by one slow connection, and a file that is already in the folder asks whether to replace it.", "انقطاع الكهرباء لم يعد يضيّع قائمة التحميلات، ونهاية التحميل لا يعطّلها اتصال بطيء واحد، والملف الموجود بالفعل في المجلد يسألك هل تستبدله."),
+    ("Replace it", "استبداله"),
+    ("New name (numbered)", "اسم جديد (برقم)"),
+    ("Cancel", "إلغاء"),
+    ("The file \"{}\" is already in this folder.\nReplace it, or save the new one with a numbered name?", "الملف \"{}\" موجود بالفعل في هذا المجلد.\nهل تريد استبداله، أم حفظ الجديد باسم برقم؟"),
+    ("Could not replace the file: {}", "تعذّر استبدال الملف: {}"),
+    ("Select all", "تحديد الكل"),
+    ("The site gave a page instead of the video (it protects its videos, or the link expired), so no broken file was kept. Play the video on its page and use the Moo Downloader button that appears on it.", "أعطى الموقع صفحة بدل الفيديو (الموقع يحمي فيديوهاته، أو انتهت صلاحية الرابط)، لذلك لم يُحفظ ملف تالف. شغّل الفيديو في صفحته واستخدم زر Moo Downloader الذي يظهر عليه."),
     (
         "This category comes with Moo Downloader and can't be deleted (you can change its file types in Properties).",
         "هذا التصنيف أساسي في Moo Downloader ولا يمكن حذفه (يمكنك تغيير أنواع ملفاته من الخصائص).",
@@ -354,7 +368,7 @@ const AR: &[(&str, &str)] = &[
         "Firefox opened the Moo Downloader add-on.\n1. Click \"Add\" in the message Firefox shows.\n2. Then click \"OK\".\n\nThe add-on is signed by Mozilla, so it stays in Firefox after you close it and updates by itself.",
         "فتح فايرفوكس إضافة Moo Downloader.\n1. اضغط \"إضافة\" في الرسالة التي يعرضها فايرفوكس.\n2. ثم اضغط \"حسنًا\".\n\nالإضافة موقّعة من Mozilla، لذلك تبقى في فايرفوكس بعد إغلاقه وتتحدّث وحدها.",
     ),
-    ("Moo Downloader was updated to version {} by itself.", "تم تحديث Moo Downloader تلقائيًا إلى الإصدار {}."),
+    ("Moo Downloader is now version {}.", "إصدار Moo Downloader الحالي هو {}."),
     ("What's new:", "الجديد في هذا الإصدار:"),
     (
         "A \"Download this video\" button on every video of a page, and you can drag it anywhere on the video.",
@@ -538,6 +552,194 @@ const AR: &[(&str, &str)] = &[
     ("Stop download", "إيقاف التحميل"),
     ("This torrent is already running (it may still be sharing its files). Wait a little, or exit Moo Downloader and open it again.", "هذا التورنت يعمل بالفعل (قد يكون ما زال يشارك ملفاته). انتظر قليلًا، أو اخرج من Moo Downloader وافتحه مرة أخرى."),
     ("The browser add-in can be paused from its own window, without turning it off in the browser's extensions page.", "يمكن إيقاف إضافة المتصفح مؤقتًا من نافذتها نفسها، دون تعطيلها من صفحة الإضافات في المتصفح."),
+    ("Moo Downloader will restart now to show its windows in the direction of the new language. Downloads continue after it opens.\n\nRestart now?", "سيُعاد تشغيل Moo Downloader الآن لتظهر نوافذه باتجاه اللغة الجديدة. التحميلات تكمل بعد فتحه.\n\nإعادة التشغيل الآن؟"),
+    ("The drive of the download folder is locked by BitLocker. Unlock it in Windows, or choose another folder (right-click the download > Properties).", "القرص الذي فيه مجلد التحميل مقفول بواسطة BitLocker. افتح قفله من ويندوز، أو اختر مجلدًا آخر (زر الفأرة الأيمن على التحميل > الخصائص)."),
+    ("Restore Moo Downloader", "إظهار Moo Downloader"),
+    ("Add new download…", "إضافة تحميل جديد…"),
+    ("Resume all downloads", "استكمال كل التحميلات"),
+    ("Stop all downloads", "إيقاف كل التحميلات"),
+    ("Speed Limiter", "محدد السرعة"),
+    ("Scheduler…", "المجدول…"),
+    ("Options…", "الخيارات…"),
+    ("About", "حول البرنامج"),
+    ("Exit", "خروج"),
+    ("Arabic: every window now reads from right to left (the program restarts once when the direction changes).", "العربية: كل النوافذ أصبحت من اليمين إلى اليسار (يُعاد تشغيل البرنامج مرة واحدة عند تغيير الاتجاه)."),
+    ("The program has its own small FFmpeg inside: video and sound are joined, MP3 files are made and live streams are saved, with nothing extra to download.", "البرنامج فيه نسخة FFmpeg صغيرة خاصة به: دمج الفيديو والصوت، وعمل ملفات MP3، وحفظ البث المباشر، بدون تحميل أي شيء إضافي."),
+    ("Live streams are saved as MP4 files.", "البث المباشر يُحفظ كملف MP4."),
+    ("MP3 files keep the title of the audio file.", "ملفات MP3 تحتفظ بعنوان الملف الصوتي."),
+    ("Much less memory and processor work, also with many downloads at once.", "استهلاك أقل بكثير للذاكرة والمعالج، حتى مع تحميلات كثيرة في نفس الوقت."),
+    ("No more freezes when a file is deleted or moved during its download, and message windows no longer hide behind the main window.", "لا مزيد من التهنيج عند حذف ملف أو نقله أثناء تحميله، ونوافذ الرسائل لم تعد تختفي خلف النافذة الرئيسية."),
+    ("Downloads are taken from the browser before its own Save As window opens.", "التحميلات تُؤخذ من المتصفح قبل أن تظهر نافذة \"حفظ باسم\" الخاصة به."),
+    ("The browser button finds more videos, also streams in several qualities, and on more sites.", "زر المتصفح يجد فيديوهات أكثر، ومنها البث بجودات متعددة، وعلى مواقع أكثر."),
+    ("AV1 qualities are offered when a video has them.", "جودات AV1 تظهر عندما يكون الفيديو متاحًا بها."),
+    ("The window of a download gets smaller when its details are hidden.", "نافذة التحميل تصغر عند إخفاء التفاصيل."),
+    ("The video button in the browser has five looks to choose from (in the add-in's window).", "زر الفيديو في المتصفح له خمسة أشكال تختار منها (من نافذة الإضافة)."),
+    ("A clear message when the download folder is on a drive locked by BitLocker.", "رسالة واضحة عندما يكون مجلد التحميل على قرص مقفول بواسطة BitLocker."),
+    ("Fixed videos that could not be downloaded on some computers because of the Windows temporary folder.", "تم إصلاح فيديوهات كانت لا تُحمَّل على بعض الأجهزة بسبب مجلد الملفات المؤقتة في ويندوز."),
+    ("The Grabber also finds links written as plain text, and the menu next to the clock is in the program's language.", "الجامع يجد أيضًا الروابط المكتوبة كنص عادي، وقائمة الأيقونة بجوار الساعة أصبحت بلغة البرنامج."),
+    ("The speed limit stays smooth with many connections, and the clipboard also catches the file types you added.", "تحديد السرعة يبقى سلسًا مع الاتصالات الكثيرة، ومراقبة الحافظة تلتقط أيضًا أنواع الملفات التي أضفتها."),
+    ("Remove these {} downloads from the download list?", "إزالة هذه التحميلات ({}) من قائمة التحميل؟"),
+    ("Remove “{}” from the download list?", "إزالة “{}” من قائمة التحميل؟"),
+    ("A click on a file link in the browser goes straight to Moo Downloader: the browser's own Save As window no longer opens (Brave too).", "الضغط على رابط ملف في المتصفح يذهب مباشرة إلى Moo Downloader: نافذة \"حفظ باسم\" الخاصة بالمتصفح لم تعد تظهر (وفي Brave أيضًا)."),
+    ("Changing the folder or the name in \"Download File Info\" no longer gives a small broken file, and a name typed without its extension keeps it.", "تغيير المجلد أو الاسم في نافذة \"معلومات الملف\" لم يعد ينتج ملفًا صغيرًا تالفًا، والاسم المكتوب بدون امتداد يحتفظ بامتداده."),
+    ("Big files keep going by themselves when the server has trouble: Moo Downloader tries again later on its own.", "الملفات الكبيرة تكمل وحدها عندما يواجه السيرفر مشكلة: Moo Downloader يحاول مرة أخرى لاحقًا من نفسه."),
+    ("Torrents: a .torrent link in the browser opens the torrent window at once, .torrent files and magnet links open with Moo Downloader, and a .torrent file can be dropped on the window.", "التورنت: رابط ملف تورنت في المتصفح يفتح نافذة التورنت مباشرة، وملفات التورنت وروابط magnet تُفتح ببرنامج Moo Downloader، ويمكن سحب ملف تورنت وإفلاته على النافذة."),
+    ("Removing downloads can delete their files from the disk too (if you tick it), and the question can be turned off.", "إزالة التحميلات يمكنها حذف ملفاتها من القرص أيضًا (إذا اخترت ذلك)، ويمكن إيقاف ظهور السؤال."),
+    ("Ctrl+A, Ctrl+N and the other shortcuts work with the Arabic keyboard too, and files are selected with the mouse in both directions.", "اختصارات Ctrl+A وCtrl+N وغيرها تعمل مع لوحة المفاتيح العربية أيضًا، وتحديد الملفات بالماوس يعمل في الاتجاهين."),
+    ("The download window is smaller, never gets wider for a long name, and its title bar is like the main window's.", "نافذة التحميل أصبحت أصغر، ولا تتسع مع الاسم الطويل، وشريط عنوانها مثل النافذة الرئيسية."),
+    ("The video button in the browser hides in full screen (or not: the add-in's window), stays closed when you close it, and streams show their quality first.", "زر الفيديو في المتصفح يختفي في وضع ملء الشاشة (أو لا: من نافذة الإضافة)، ويبقى مغلقًا عند إغلاقه، والبث يُظهر جودته أولًا."),
+    ("Firefox: the add-in is signed again and updates by itself.", "فايرفوكس: الإضافة موقّعة من جديد وتتحدث وحدها."),
+    ("Playlists have 240p and 144p, the MP3 quality can be chosen, and the subtitles of videos can be downloaded too (Options > Downloads).", "قوائم التشغيل فيها جودة 240p و144p، ويمكن اختيار جودة MP3، وتحميل ترجمة الفيديوهات أيضًا (الخيارات > التحميلات)."),
+    ("The toolbar grows with bigger text, so the names are never cut.", "شريط الأدوات يكبر مع تكبير الخط، فلا تُقص أسماء الأزرار."),
+    ("The download window has the Windows title bar again, so every button answers the mouse where it is (Windows 10 and 11); its details stay hidden until you show them, and the windows keep the size you gave them.", "نافذة التحميل رجع لها شريط عنوان ويندوز، فكل زر يستجيب للماوس في مكانه (ويندوز 10 و11)؛ والتفاصيل مخفية حتى تُظهرها، والنوافذ تحتفظ بالمقاس الذي اخترته."),
+    ("The windows are drawn without the graphics card: much less memory, and the program no longer closes by itself at start on some computers (Options > General switches it back).", "النوافذ تُرسم بدون كارت الشاشة: استهلاك ذاكرة أقل بكثير، والبرنامج لم يعد يُغلق وحده عند الفتح على بعض الأجهزة (يمكن إرجاعه من الخيارات > عام)."),
+    ("A link that stops working (expired) is renewed by itself and checked first, then the download goes on from where it was.", "الرابط الذي يتوقف عن العمل (انتهت صلاحيته) يتجدد وحده ويُفحص أولًا، ثم يكمل التحميل من حيث توقف."),
+    ("The number of connections changes at once, even while a file downloads, and a connection much slower than the others is made again, so the speed stays steady.", "عدد الاتصالات يتغير فورًا حتى أثناء تحميل الملف، والاتصال الأبطأ بكثير من الباقي يُعاد فتحه، فتبقى السرعة ثابتة."),
+    ("The speed limiter goes on and off with a click in the status bar, and \"Move to queue\" opens in a list of its own.", "محدد السرعة يعمل ويتوقف بضغطة في شريط الحالة، و\"نقل إلى قائمة الانتظار\" تُفتح في قائمة خاصة بها."),
+    ("The link stopped working. A new one is fetched in {} s and checked before the download goes on.", "الرابط توقف عن العمل. سيتم جلب رابط جديد خلال {} ثانية وفحصه قبل أن يكمل التحميل."),
+    ("A file with this name is already in that folder, so nothing was moved. Choose another name.", "يوجد ملف بنفس الاسم في هذا المجلد، لذلك لم يتم النقل. اختر اسمًا آخر."),
+    ("ffmpeg.exe (it joins the video and the sound) is missing and could not be downloaded again. Allow it in your antivirus or install Moo Downloader again, then click Resume: nothing downloaded is lost.", "برنامج ffmpeg.exe (الذي يدمج الصورة والصوت) غير موجود ولم يمكن تحميله مرة أخرى. اسمح به في برنامج الحماية أو ثبّت Moo Downloader من جديد، ثم اضغط استئناف: لن يضيع شيء مما تم تحميله."),
+    ("Downloads never wait for ever any more: when a server stops answering, Moo Downloader asks again by itself, so a video or a file no longer stays at 0 KB/s or never starts, and Pause / Resume is not needed.", "التحميل لم يعد ينتظر إلى الأبد: عندما يتوقف السيرفر عن الرد يعيد Moo Downloader الطلب وحده، فلا يقف الفيديو أو الملف على 0 كيلوبايت ولا يبقى دون أن يبدأ، ولا حاجة للإيقاف ثم الاستئناف."),
+    ("When Moo Downloader is open but does not answer, opening it again offers to close it and start it fresh; an update shows its small window and never closes the program again and again.", "إذا كان Moo Downloader مفتوحًا لكنه لا يستجيب، فتحه مرة أخرى يعرض إغلاقه وتشغيله من جديد؛ والتحديث يُظهر نافذته الصغيرة ولا يُغلق البرنامج مرة بعد مرة."),
+    ("The video button: a small style (arrow and ✕) with a see-through slider, videos in the Facebook feed, and the qualities of streams on many more sites instead of an error.", "زر الفيديو: شكل صغير (سهم و✕) مع شريط للشفافية، وفيديوهات صفحة فيسبوك الرئيسية، وجودات البث في مواقع أكثر بكثير بدلًا من رسالة خطأ."),
+    ("The browser add-in reloads itself after an update, and Chrome / Edge get its files back when some went missing (\"files missing or unreadable\").", "إضافة المتصفح تعيد تحميل نفسها بعد التحديث، وكروم وإيدج تُعاد لهما ملفاتها إذا اختفى بعضها (\"الملفات ناقصة أو غير قابلة للقراءة\")."),
+    ("ffmpeg.exe (it joins the picture and the sound) is downloaded again by itself when an antivirus removed it.", "ملف ffmpeg.exe (الذي يدمج الصورة والصوت) يُحمَّل من جديد وحده إذا حذفه برنامج الحماية."),
+    ("Safer files: every part is checked before it is written, a moved file never replaces another one, and streams made of one big file or sent elsewhere download correctly.", "ملفات أكثر أمانًا: كل جزء يُفحص قبل أن يُكتب، ونقل الملف لا يستبدل ملفًا آخر أبدًا، والبث المكوّن من ملف واحد كبير أو المحوَّل لمكان آخر يُحمَّل بشكل صحيح."),
+    ("Opening a finished file or \"Open with\" never makes the program wait.", "فتح ملف مكتمل أو \"فتح باستخدام\" لا يجعل البرنامج ينتظر أبدًا."),
+    ("The server had trouble and can't resume this file, so it starts again from the beginning in {} s.", "واجه السيرفر مشكلة ولا يدعم استكمال هذا الملف، لذلك سيبدأ من البداية خلال {} ثانية."),
+    ("Looking for people who share this torrent…", "جارٍ البحث عن أشخاص يشاركون هذا التورنت…"),
+    ("Downloading from {} people ({} of them have the whole file)", "يتم التحميل من {} شخص ({} منهم لديهم الملف كاملًا)"),
+    ("Nobody shares this torrent right now. It keeps looking and starts by itself as soon as someone does. If it stays like this, the torrent has no sharers left, or your internet provider or firewall blocks torrents.", "لا أحد يشارك هذا التورنت الآن. سيواصل البحث ويبدأ وحده بمجرد أن يشاركه أحد. إذا استمر هكذا، فالتورنت لم يعد له من يشاركه، أو أن مزود الإنترنت أو الجدار الناري يحجب التورنت."),
+    ("The server refused Moo Downloader (it lets only the browser in). The link was opened in the browser, which hands it back with the site's sign-in; if the site still refuses, the browser downloads it itself.", "رفض السيرفر Moo Downloader (يسمح للمتصفح فقط). تم فتح الرابط في المتصفح ليعيده ومعه تسجيل الدخول في الموقع؛ وإذا استمر الموقع في الرفض فالمتصفح يحمّله بنفسه."),
+    ("Connect a browser?", "ربط متصفح؟"),
+    ("A browser add-in asks to connect to Moo Downloader (to send it the downloads and videos of the browser).\n\nSay yes only if you just installed or updated the Moo Downloader add-in in your browser.", "إضافة متصفح تطلب الاتصال بـ Moo Downloader (لترسل له تحميلات وفيديوهات المتصفح).\n\nوافق فقط إذا كنت قد ثبّت أو حدّثت إضافة Moo Downloader في متصفحك للتو."),
+    ("Moo Downloader needs to restart to use the new port (set the same port in the browser add-in too). Downloads continue after it opens.\n\nRestart now?", "يحتاج Moo Downloader لإعادة التشغيل لاستخدام المنفذ الجديد (اضبط نفس المنفذ في إضافة المتصفح أيضًا). التحميلات تكمل بعد أن يفتح.\n\nإعادة التشغيل الآن؟"),
+    ("Moo Downloader needs to restart to draw its windows the new way. Downloads continue after it opens.\n\nRestart now?", "يحتاج Moo Downloader لإعادة التشغيل ليرسم نوافذه بالطريقة الجديدة. التحميلات تكمل بعد أن يفتح.\n\nإعادة التشغيل الآن؟"),
+    ("No more black windows: a window that Windows had cleared (shown again from next to the clock, after the screen slept...) is drawn whole again.", "لا مزيد من النوافذ السوداء: النافذة التي مسحها ويندوز (عند إظهارها من بجوار الساعة، أو بعد سكون الشاشة...) تُرسم كاملة من جديد."),
+    ("Sites that let only the browser in (HTTP 403): Moo Downloader sends exactly what the browser sent, and if the site still refuses, the browser is asked for the file and hands it back with the site's sign-in.", "المواقع التي تسمح للمتصفح فقط (HTTP 403): يرسل Moo Downloader نفس ما أرسله المتصفح بالضبط، وإذا استمر الموقع في الرفض يُطلب الملف من المتصفح ليعيده ومعه تسجيل الدخول في الموقع."),
+    ("A PDF link goes straight to Moo Downloader: no second window asking where to save from the PDF viewer of Edge and Brave.", "رابط ملف PDF يذهب مباشرة إلى Moo Downloader: لا توجد نافذة ثانية تسأل أين تحفظ من عارض PDF في إيدج وبريف."),
+    ("Torrents find many more people to download from (public trackers), the window says how many are connected, and it tells you when nobody shares the torrent.", "التورنت يجد أشخاصًا أكثر بكثير للتحميل منهم (متتبعات عامة)، والنافذة تقول كم شخصًا متصلًا، وتخبرك عندما لا يشارك أحد التورنت."),
+    ("Direct links: the server is asked the way download managers usually ask, and a server that does not really resume gets one steady connection instead of failing again and again.", "الروابط المباشرة: يُسأل السيرفر بالطريقة المعتادة لبرامج التحميل، والسيرفر الذي لا يدعم الاستكمال فعلًا يحصل على اتصال واحد ثابت بدلًا من الفشل مرة بعد مرة."),
+    ("A file that changed on the server while it was paused starts again, instead of mixing the old and the new file; a server that can't resume and has trouble makes the download start again by itself.", "الملف الذي تغيّر على السيرفر أثناء الإيقاف يبدأ من جديد بدلًا من خلط الملف القديم بالجديد؛ والسيرفر الذي لا يدعم الاستكمال ويواجه مشكلة يجعل التحميل يبدأ من جديد وحده."),
+    ("The time left stays steady and still shows when the speed drops for a moment.", "الوقت المتبقي يبقى ثابتًا ويظل ظاهرًا عندما تنخفض السرعة للحظة."),
+    ("Settings that need a new start (the drawing, the port) ask to restart the program.", "الإعدادات التي تحتاج تشغيلًا جديدًا (طريقة الرسم، المنفذ) تطلب إعادة تشغيل البرنامج."),
+    ("Safer: only the Moo Downloader add-in can talk to the program (a secret key), and watching the clipboard is off until you turn it on.", "أمان أكثر: إضافة Moo Downloader فقط هي التي تستطيع التحدث مع البرنامج (مفتاح سري)، ومراقبة الحافظة متوقفة حتى تشغّلها بنفسك."),
+    ("The mouse pointer stays normal on the video button.", "مؤشر الماوس يبقى عاديًا على زر الفيديو."),
+    ("Windows open in the middle of the screen without a white box first.", "النوافذ تفتح في منتصف الشاشة مباشرة بدون مربع أبيض قبلها."),
+    ("This video is protected by its site (DRM): no download program can save it. It can only be watched on the site.", "هذا الفيديو محمي من صاحب الموقع (DRM): لا يمكن لأي برنامج تحميل أن يحفظه. يمكن مشاهدته من الموقع فقط."),
+    ("The add-in's files were put back. It starts again by itself within a minute (or click Reload on it in the browser's extensions page).", "تمت إعادة ملفات الإضافة. ستبدأ من جديد وحدها خلال دقيقة (أو اضغط \"إعادة التحميل\" عليها في صفحة الإضافات في المتصفح)."),
+    ("Some files of the add-in could not be written. Close the browser and click \"Repair the add-in\" again.", "تعذّرت كتابة بعض ملفات الإضافة. أغلق المتصفح واضغط \"إصلاح الإضافة\" مرة أخرى."),
+    ("Safer: the add-in talks to the program on a port chosen at random on this computer, every request is signed with a secret key (the key itself is never sent), and watching the clipboard is off until you turn it on.", "أمان أكثر: الإضافة تتحدث مع البرنامج على منفذ يُختار عشوائيًا على هذا الجهاز، وكل طلب موقّع بمفتاح سري (المفتاح نفسه لا يُرسل أبدًا)، ومراقبة الحافظة متوقفة حتى تشغّلها بنفسك."),
+    ("The browser add-in keeps working after an update: the setup puts it in again whole, it starts clean, and its window has \"Connect again\"; Options > Browsers has \"Repair the add-in\".", "إضافة المتصفح تظل تعمل بعد التحديث: برنامج الإعداد يضعها من جديد كاملة، وتبدأ على نظافة، ونافذتها فيها \"Connect again\"؛ وفي نافذة المتصفحات زر \"إصلاح الإضافة\"."),
+    ("The video button stays where it is when its list opens (the list opens under it, or above it when there is no room), and a protected video (DRM) says so plainly with a lock.", "زر الفيديو يبقى في مكانه عند فتح قائمته (القائمة تُفتح تحته، أو فوقه إذا لم يكن هناك مكان)، والفيديو المحمي (DRM) يقول ذلك بوضوح مع قفل."),
+    ("The new link gives another file, so nothing more was written. Right-click the download and use \"Refresh download address\".", "الرابط الجديد يعطي ملفًا مختلفًا، لذلك لم يُكتب أي شيء إضافي. اضغط بزر الفأرة الأيمن على التحميل واختر \"تحديث عنوان التحميل\"."),
+    ("The start is after the end of the video.", "البداية بعد نهاية الفيديو."),
+    ("The end must come after the start.", "يجب أن تأتي النهاية بعد البداية."),
+    ("The part must be at least half a second long.", "يجب ألا تقل مدة الجزء عن نصف ثانية."),
+    ("Paste the address of the video (https://…).", "الصق عنوان الفيديو (https://…)."),
+    ("Looking at the video… (a few seconds)", "جارٍ فحص الفيديو… (بضع ثوانٍ)"),
+    ("No video was found at this address.", "لم يُعثر على فيديو في هذا العنوان."),
+    ("Length of the video: {}", "مدة الفيديو: {}"),
+    ("The length of this video is not known: type the times.", "مدة هذا الفيديو غير معروفة: اكتب الأوقات بنفسك."),
+    ("Could not get the video: {}", "تعذّر جلب الفيديو: {}"),
+    ("No program on this computer plays this kind of file.", "لا يوجد برنامج على هذا الجهاز يشغّل هذا النوع من الملفات."),
+    ("Could not prepare the preview: {}", "تعذّر تجهيز المعاينة: {}"),
+    ("The part {} was added to the list.", "أُضيف الجزء {} إلى القائمة."),
+    ("The part could not be cut. Try the quick cut, or another quality.", "تعذّر قص الجزء. جرّب القص السريع، أو جودة أخرى."),
+    ("The part you chose is after the end of the video.", "الجزء الذي اخترته بعد نهاية الفيديو."),
+    ("Drag the finished file out: in the \"Download complete\" window, pull the file's icon (\"Drag me\") onto the desktop, a folder, a chat or any program, and a copy of the file goes there.", "اسحب الملف بعد انتهاء تحميله: في نافذة \"اكتمل التحميل\" اسحب أيقونة الملف (\"اسحبني\") إلى سطح المكتب أو أي مجلد أو محادثة أو أي برنامج، فتوضع هناك نسخة من الملف."),
+    ("Sites behind Cloudflare protection that refused Moo Downloader (HTTP 403) while the browser and other download programs got the file (samfw.com and many more): Moo Downloader now asks for files the way they do.", "المواقع المحمية بـ Cloudflare التي كانت ترفض Moo Downloader (HTTP 403) بينما يحمّل منها المتصفح وبرامج التحميل الأخرى (مثل samfw.com ومواقع كثيرة غيره): يطلب Moo Downloader الملفات الآن بنفس طريقتها."),
+    ("The Firefox add-on stays up to date: when the add-on in Firefox is older than the program, Moo Downloader says so and opens the new one (click \"Add\" in Firefox).", "إضافة فايرفوكس تبقى محدّثة: عندما تكون الإضافة في فايرفوكس أقدم من البرنامج، يخبرك Moo Downloader بذلك ويفتح الإضافة الجديدة (اضغط \"إضافة\" في فايرفوكس)."),
+    ("Download File Info shows the whole size of a video whose picture and sound come apart (the same size as in the add-in), with the size of each.", "نافذة معلومات التحميل تعرض الحجم الكامل للفيديو الذي تأتي صورته وصوته منفصلين (نفس الحجم الذي تعرضه الإضافة)، مع حجم كل منهما."),
+    ("The add-in downloads whole videos; \"Download a part of a video\" is in the program for now (Tasks > Download a part of a video).", "الإضافة تحمّل الفيديوهات كاملة؛ و\"تحميل جزء من فيديو\" موجود في البرنامج حاليًا (المهام > تحميل جزء من فيديو)."),
+    ("Messages of the add-in in Arabic read right to left, and the setup never puts an older Firefox add-on back.", "رسائل الإضافة بالعربية تُقرأ من اليمين إلى اليسار، وبرنامج الإعداد لا يعيد أبدًا إضافة فايرفوكس أقدم."),
+    ("Update the Firefox add-on", "تحديث إضافة فايرفوكس"),
+    ("The Moo Downloader add-on in Firefox is an older version than the program, so videos and downloads may not work in Firefox.\n\nClick OK: Firefox opens the new add-on. Then click \"Add\" in the message Firefox shows.", "إضافة Moo Downloader في فايرفوكس أقدم من البرنامج، لذلك قد لا تعمل الفيديوهات والتحميلات في فايرفوكس.\n\nاضغط موافق: سيفتح فايرفوكس الإضافة الجديدة. ثم اضغط \"إضافة\" في الرسالة التي يعرضها فايرفوكس."),
+    ("picture {}", "الصورة {}"),
+    ("sound {}", "الصوت {}"),
+    ("Download a part of a video: choose from / to (or \"Now\" while it plays), look at the part first, and only that part is downloaded, with a quick cut or an exact cut. In the add-in's list of qualities, and in Tasks > Download a part of a video.", "تحميل جزء من فيديو: اختر من / إلى (أو \"Now\" أثناء التشغيل)، وشاهد الجزء أولًا، ويُحمَّل هذا الجزء فقط، بقص سريع أو قص دقيق. في قائمة الجودات في الإضافة، وفي المهام > تحميل جزء من فيديو."),
+    ("Joining the picture and the sound", "دمج الصورة والصوت"),
+    ("Making the MP4 file", "إنشاء ملف MP4"),
+    ("Making the MP3 file", "إنشاء ملف MP3"),
+    ("Moving the file to its folder", "نقل الملف إلى مجلده"),
+    ("Cutting the part", "قص الجزء"),
+    ("{}…", "{}…"),
+    ("Not enough free space on the disk {}: the file needs {} more, only {} is free. Choose a folder on another disk (right-click the download > Move / Rename), or free some space, then click Resume.", "لا توجد مساحة كافية على القرص {}: الملف يحتاج {} أخرى، والمتاح {} فقط. اختر مجلدًا على قرص آخر (زر الفأرة الأيمن على التحميل > نقل / إعادة تسمية)، أو وفّر بعض المساحة، ثم اضغط استئناف."),
+    ("The downloaded data is gone: its temporary file was removed while it downloaded (an antivirus or a cleaning program?). Click Redownload; if it happens again, allow the download folder in the antivirus.", "البيانات التي تم تحميلها اختفت: حُذف ملفها المؤقت أثناء التحميل (برنامج حماية أو برنامج تنظيف؟). اضغط \"إعادة التحميل\"؛ وإذا تكرر ذلك، استثنِ مجلد التحميل في برنامج الحماية."),
+    ("Big files: a second bar shows the joining of picture and sound and the moving of the file to its folder, big videos are joined in about half the time, a folder chosen in Download File Info takes the file there at once (the free space of that disk counts), and removing a download never takes another download's file away.", "الملفات الكبيرة: شريط ثانٍ يُظهر دمج الصورة والصوت ونقل الملف إلى مجلده، والفيديوهات الكبيرة تُدمج في نصف الوقت تقريبًا، والمجلد الذي تختاره في نافذة معلومات التحميل يأخذ الملف إليه فورًا (وتُحسب مساحة ذلك القرص)، وحذف تحميل لا يأخذ أبدًا ملف تحميل آخر."),
+    ("Sites that allow only a few connections at a time (\"too many requests\", HTTP 429): the download goes on by itself with fewer connections, and that site's next downloads start with that many.", "المواقع التي تسمح باتصالات قليلة في نفس الوقت (\"طلبات كثيرة جدًا\"، HTTP 429): يكمل التحميل وحده باتصالات أقل، وتبدأ التحميلات التالية من نفس الموقع بهذا العدد."),
+    ("This video is in AV1 (the same picture in a much smaller file). If your player plays only its sound, without the picture, get Microsoft's free \"AV1 Video Extension\" (or play it with VLC).\n\nOpen it in the Microsoft Store now?", "هذا الفيديو بصيغة AV1 (نفس الصورة في ملف أصغر بكثير). إذا شغّل المشغّل الصوت فقط بدون صورة، ثبّت إضافة \"AV1 Video Extension\" المجانية من مايكروسوفت (أو شغّله ببرنامج VLC).\n\nهل تريد فتحها في متجر مايكروسوفت الآن؟"),
+    ("Getting the list of files from the people who share it… (up to a minute and a half)", "جارٍ جلب قائمة الملفات من الأشخاص الذين يشاركونه… (حتى دقيقة ونصف)"),
+    ("The file list did not come yet: all files will be downloaded (they show once it starts).", "لم تصل قائمة الملفات بعد: سيتم تحميل كل الملفات (تظهر بعد بدء التحميل)."),
+    ("Torrents: a magnet link shows its files first so you can choose them, and torrents find more people to download from. Links that work only in the browser (ChatGPT files, iLovePDF and other links that work once or need the page's sign-in) stay in the browser instead of failing.", "التورنت: رابط المغناطيس يعرض ملفاته أولًا لتختار منها، والتورنت يجد أشخاصًا أكثر للتحميل منهم. الروابط التي تعمل في المتصفح فقط (ملفات ChatGPT وiLovePDF وغيرها من الروابط التي تعمل مرة واحدة أو تحتاج تسجيل دخول الصفحة) تبقى في المتصفح بدل أن تفشل."),
+    ("Facebook and Instagram: videos of closed groups and friends-only posts are found with the browser's sign-in, an AV1 video (sound without picture in older players) says so, and sites that drop extra connections get fewer by themselves.", "فيسبوك وإنستجرام: فيديوهات الجروبات المغلقة ومنشورات الأصدقاء فقط تُجلب بتسجيل دخول المتصفح، وفيديو AV1 (صوت بدون صورة في المشغّلات القديمة) ينبّهك لذلك، والمواقع التي تقطع الاتصالات الزائدة تحصل على اتصالات أقل تلقائيًا."),
+    ("The site asks to confirm you are not a robot. Open the link in the browser, confirm there, then click Resume.", "الموقع يطلب التأكد من أنك لست روبوتًا. افتح الرابط في المتصفح وأكّد هناك، ثم اضغط استكمال."),
+    ("Connected to people who send nothing yet (they don't have the missing pieces, or they are busy). Moo Downloader keeps looking for others who have the file.", "متصل بأجهزة لا ترسل شيئًا حتى الآن (ليس لديها الأجزاء الناقصة، أو أنها مشغولة). Moo Downloader يواصل البحث عن آخرين لديهم الملف."),
+    ("Getting the signed Firefox add-on from the official page…", "جارٍ جلب إضافة Firefox الموقّعة من الصفحة الرسمية…"),
+    ("The Firefox add-on could not be fetched ({}). Check the internet and click Firefox again.", "تعذر جلب إضافة Firefox ‏({}). تأكد من الإنترنت واضغط Firefox مرة أخرى."),
+    ("Check file (SHA-256)", "فحص الملف (SHA-256)"),
+    ("Copy address", "نسخ الرابط"),
+    ("Delete from queue", "حذف من قائمة الانتظار"),
+    ("Download a part of it…", "تحميل جزء منه…"),
+    ("Move / Rename…", "نقل / إعادة تسمية…"),
+    ("Move to queue", "نقل إلى قائمة الانتظار"),
+    ("Open folder", "فتح المجلد"),
+    ("Open with…", "فتح باستخدام…"),
+    ("Open", "فتح"),
+    ("Play while downloading", "تشغيل أثناء التحميل"),
+    ("Properties", "الخصائص"),
+    ("Redownload", "إعادة التحميل"),
+    ("Refresh download address…", "تحديث رابط التحميل…"),
+    ("Remove", "حذف"),
+    ("Resume download", "استئناف التحميل"),
+    ("{} downloads selected", "تم تحديد {} تحميلات"),
+    ("Four new 3D looks (View): 3D, Aurora glass, Soft clay and Cyber neon, with raised buttons, colored pictures, downloads on floating cards and a new download window with a progress ring and the speed.", "أربعة أشكال جديدة ثلاثية الأبعاد (عرض): ثلاثي الأبعاد 3D، وزجاج الشفق، وصلصال ناعم، ونيون سايبر، بأزرار بارزة وصور ملونة وتحميلات على بطاقات طافية ونافذة تحميل جديدة فيها دائرة تقدم ورسم للسرعة."),
+    ("The setup asks for the language of the program at the first install, and can let torrents through the Windows firewall.", "برنامج التثبيت يسأل عن لغة البرنامج عند أول تثبيت، ويمكنه السماح للتورنت بالمرور من جدار حماية Windows."),
+    ("Options > Torrents: make Moo Downloader the main program for torrents, or leave magnet links and .torrent files to your own torrent program.", "الخيارات > التورنت: اجعل Moo Downloader البرنامج الرئيسي للتورنت، أو اترك روابط magnet وملفات ‎.torrent لبرنامج التورنت الخاص بك."),
+    ("A torrent that is connected but gets nothing looks for other people by itself, and says why it waits.", "التورنت المتصل الذي لا يصله شيء يبحث عن أجهزة أخرى وحده، ويوضح سبب الانتظار."),
+    ("Playlists: names in the program's language, right-to-left names shown from the right, a few videos at a time, and a video that fails is tried again by itself.", "قوائم التشغيل: الأسماء بلغة البرنامج، والأسماء العربية تظهر من اليمين، وبضعة فيديوهات في المرة الواحدة، والفيديو الذي يفشل يُعاد تحميله وحده."),
+    ("The add-in has one tab for the whole video and one for a part of it, and it never downloads the video that played before in the same player.", "إضافة المتصفح فيها تبويب للفيديو كامل وتبويب لجزء منه، ولا تحمّل أبدًا الفيديو الذي كان يعمل قبله في نفس المشغل."),
+    ("The right-click menu of the list is a real Windows menu that is never cut off, in the look of the program.", "قائمة الزر الأيمن في القائمة أصبحت قائمة Windows حقيقية لا تُقطع أبدًا، بنفس شكل البرنامج."),
+    ("Sites that refuse extra connections: the download goes on with fewer. Up to 64 connections. A site that asks for a robot check says so, and the Firefox add-on is fetched from the official page when it is missing.", "المواقع التي ترفض الاتصالات الإضافية: التحميل يكمل باتصالات أقل. حتى 64 اتصالًا. الموقع الذي يطلب التأكد من أنك لست روبوتًا يوضح ذلك، وإضافة Firefox تُجلب من الصفحة الرسمية عندما تكون غير موجودة."),
+    ("Link between the browsers and Moo Downloader:", "الربط بين المتصفحات و Moo Downloader:"),
+    ("The program answers the add-in", "البرنامج يرد على الإضافة"),
+    ("Its usual port is kept by another program or by Windows: the add-in uses the program's own port (nothing to do).", "المنفذ المعتاد يستخدمه برنامج آخر أو ويندوز: الإضافة تستخدم المنفذ الخاص بالبرنامج (لا داعي لعمل شيء)."),
+    ("The browsers' helper is in place", "مساعد المتصفحات موجود"),
+    ("{} knows the helper", "{} يعرف المساعد"),
+    ("An add-in talked to the program in the last 15 minutes", "تواصلت إضافة مع البرنامج خلال آخر 15 دقيقة"),
+    ("...through the browsers' helper", "...عن طريق مساعد المتصفحات"),
+    ("No add-in talked lately: open the browser, make sure the Moo Downloader add-in is on (Extensions page), then click a download link and test again.", "لم تتواصل أي إضافة مؤخرًا: افتح المتصفح وتأكد أن إضافة Moo Downloader مفعّلة (صفحة الإضافات)، ثم اضغط على رابط تحميل واختبر مرة أخرى."),
+    ("The add-in talks through the port only. In Firefox: the add-in's window > \"Connect directly\". In other browsers: reload the add-in once (Extensions page).", "الإضافة تتواصل عن طريق المنفذ فقط. في فايرفوكس: نافذة الإضافة > \"Connect directly\". في المتصفحات الأخرى: أعد تحميل الإضافة مرة واحدة (صفحة الإضافات)."),
+    ("Everything works.", "كل شيء يعمل."),
+    ("Please enter a valid http://, https:// or ftp:// address", "من فضلك أدخل رابطًا صحيحًا يبدأ بـ http:// أو https:// أو ftp://"),
+    ("This is not a checksum: paste its MD5, SHA-1, SHA-256, SHA-384 or SHA-512 value", "هذا ليس رمز تحقق: الصق قيمة MD5 أو SHA-1 أو SHA-256 أو SHA-384 أو SHA-512"),
+    ("The torrent goes on with the files checked.", "التورنت يكمل بالملفات المحددة."),
+    ("Tracker added.", "تمت إضافة المتتبع."),
+    ("This is not a tracker address (udp://, http:// or https://).", "هذا ليس عنوان متتبع (udp:// أو http:// أو https://)."),
+    ("Every piece on the disk is checked again, then it goes on.", "يُعاد فحص كل جزء على القرص، ثم يكمل."),
+    ("The magnet link was copied.", "تم نسخ رابط magnet."),
+    ("The magnet link could not be made.", "تعذر إنشاء رابط magnet."),
+    ("Sent to others: {} (ratio {})", "تم الإرسال للآخرين: {} (النسبة {})"),
+    ("Checking the file", "جارٍ فحص الملف"),
+    ("The downloaded file is damaged: its checksum is not the one it should have. Click Redownload.", "الملف الذي تم تحميله تالف: رمز التحقق الخاص به ليس هو المطلوب. اضغط إعادة التحميل."),
+    ("The file on the server changed since the download began, so its parts would not fit together. Click Redownload.", "الملف على الخادم تغيّر منذ بدء التحميل، فأجزاؤه لن تتطابق معًا. اضغط إعادة التحميل."),
+    ("The link opens one web page after another, not a file. Open it in the browser and download it from there.", "الرابط يفتح صفحة ويب بعد أخرى وليس ملفًا. افتحه في المتصفح وحمّله من هناك."),
+    ("This torrent has file names that lead out of its folder, so it was stopped to keep your other files safe.", "هذا التورنت فيه أسماء ملفات تخرج خارج مجلده، لذلك تم إيقافه لحماية ملفاتك الأخرى."),
+    ("Keyboard shortcuts\n\nCtrl+N or Ctrl+V: add a download (a copied address)\nCtrl+B: add several addresses\nEnter: open the download (its window, or the file)\nAlt+Enter: properties\nF2: rename / move the file\nCtrl+R: resume\nCtrl+S: stop\nCtrl+O: open the file\nCtrl+E: open its folder\nCtrl+C: copy the address\nDelete: delete\nUp / Down, Home / End: move in the list (with Shift: select)\nCtrl+A: select all\nCtrl+F, F3: find, find the next", "اختصارات لوحة المفاتيح\n\nCtrl+N أو Ctrl+V: إضافة تحميل (رابط منسوخ)\nCtrl+B: إضافة عدة روابط\nEnter: فتح التحميل (نافذته أو الملف)\nAlt+Enter: الخصائص\nF2: إعادة تسمية / نقل الملف\nCtrl+R: استئناف\nCtrl+S: إيقاف\nCtrl+O: فتح الملف\nCtrl+E: فتح مجلده\nCtrl+C: نسخ الرابط\nDelete: حذف\nأعلى / أسفل، Home / End: التنقل في القائمة (مع Shift: تحديد)\nCtrl+A: تحديد الكل\nCtrl+F و F3: بحث، البحث عن التالي"),
+    ("FTP and FTPS links download like web links: in parts, with resume, and with the user name and password kept apart from the address.", "روابط FTP و FTPS تُحمَّل مثل روابط الويب: على أجزاء، مع الاستكمال، واسم المستخدم وكلمة المرور محفوظان بعيدًا عن الرابط."),
+    ("Checksum: paste an MD5, SHA-1 or SHA-256 value in Download File Info (or the site gives one) and the file is checked when it finishes.", "رمز التحقق: الصق قيمة MD5 أو SHA-1 أو SHA-256 في معلومات ملف التحميل (أو يعطيها الموقع) ويُفحص الملف عند انتهائه."),
+    ("Torrents have their own tab in Properties: the files (choose them while it runs), the people, the trackers and the pieces. Add a tracker, check the files again, copy the magnet link, first and last pieces first, and stop sharing at a ratio you choose.", "للتورنت تبويب خاص في الخصائص: الملفات (اخترها أثناء التحميل)، والأجهزة المتصلة، والمتتبعات، والأجزاء. أضف متتبعًا، وأعد فحص الملفات، وانسخ رابط magnet، وحمّل الجزء الأول والأخير أولًا، وأوقف المشاركة عند النسبة التي تختارها."),
+    ("Safer resume: a file that changed on the server is noticed instead of being joined with the old parts, links that lead through a few pages to the file are followed, and downloads that need a form sent from the browser work.", "استكمال أكثر أمانًا: الملف الذي تغيّر على الخادم يُكتشف بدل أن يُدمج مع الأجزاء القديمة، والروابط التي تمر بعدة صفحات قبل الملف تُتابع، والتحميلات التي تحتاج إرسال نموذج من المتصفح تعمل."),
+    ("The speed limit can work only while you use the computer, and a scheduled queue can wake the computer from sleep to start.", "حد السرعة يمكن أن يعمل فقط أثناء استخدامك للكمبيوتر، وقائمة الانتظار المجدولة يمكنها إيقاظ الكمبيوتر من وضع السكون لتبدأ."),
+    ("Keyboard shortcuts for the list (F1 shows them), a command line for other programs and scripts, and Help > Add Moo Downloader to my browser > Test the link checks the add-in step by step.", "اختصارات لوحة المفاتيح للقائمة (F1 يعرضها)، وسطر أوامر للبرامج والسكربتات الأخرى، ومساعدة > إضافة Moo Downloader إلى متصفحي > اختبار الربط يفحص الإضافة خطوة بخطوة."),
+    ("The add-in works in private windows too (allow it there in the browser), keeps the browser's own download when the program is closed, and its video button can be moved or hidden on a site.", "الإضافة تعمل في النوافذ الخاصة أيضًا (اسمح لها بذلك من المتصفح)، وتترك التحميل للمتصفح نفسه إذا كان البرنامج مغلقًا، وزر الفيديو يمكن نقله أو إخفاؤه في أي موقع."),
+    ("Torrents are shared by the program itself now, with no helper program: they start sooner, use less of the computer, and a stopped torrent goes on after a restart without checking all its pieces again.", "التورنت أصبح يعمل من داخل البرنامج نفسه دون برنامج مساعد: يبدأ أسرع، ويستهلك موارد أقل من الكمبيوتر، والتورنت المتوقف يكمل بعد إعادة التشغيل دون إعادة فحص كل أجزائه."),
+    ("Asking the server about the links: {} left", "جارٍ سؤال الخادم عن الروابط: متبقٍ {}"),
+    ("{} files", "{} ملف"),
+    ("{} finished, {} could not be downloaded", "انتهى {}، وتعذر تحميل {}"),
+    ("All {} finished", "انتهت كلها ({})"),
+    ("Waiting for \"{}\" to be finished first (its parts are being put together).", "في انتظار انتهاء \"{}\" أولًا (يتم تجميع أجزائه الآن)."),
+    ("The Site Grabber finds the files behind download links that show no file name and asks the server for their real names and sizes, a playlist shows one \"Download complete\" window at the end instead of one for every file, and the computer is never shut down or put to sleep while a file is still being put together.", "أداة جمع الملفات تجد الملفات خلف روابط التحميل التي لا يظهر فيها اسم ملف، وتسأل الخادم عن أسمائها وأحجامها الحقيقية، وقائمة التشغيل تُظهر نافذة \"اكتمل التحميل\" واحدة في النهاية بدل نافذة لكل ملف، والكمبيوتر لا يُغلق ولا يدخل السكون أبدًا وملف ما زال يتم تجميعه."),
 ];
 
 #[cfg(test)]
@@ -566,5 +768,55 @@ mod tests {
         }
         assert_eq!(index_of("xx"), 0);
         assert_eq!(effective("es"), "es");
+    }
+
+    #[test]
+    fn whats_new_and_shortcuts_in_every_language() {
+        let texts: Vec<&str> = crate::extra::WHATS_NEW.iter().copied().chain([crate::SHORTCUTS, "Checking the file"]).collect();
+        for en in texts {
+            assert!(lookup(en).is_some(), "ar: {en}");
+            for (code, _) in LANGS.iter().skip(2) {
+                assert!(table(code).expect("table").contains_key(en), "{code}: {en}");
+            }
+        }
+    }
+}
+
+/// A name written right to left (Arabic, Hebrew, Persian…): its first
+/// letter decides, as in a text editor.
+pub fn rtl_text(s: &str) -> bool {
+    for c in s.chars() {
+        let u = c as u32;
+        if matches!(u, 0x0590..=0x08FF | 0xFB1D..=0xFDFF | 0xFE70..=0xFEFF | 0x10800..=0x10FFF | 0x1E800..=0x1EFFF) {
+            return true;
+        }
+        if c.is_alphabetic() {
+            return false;
+        }
+    }
+    false
+}
+
+/// The name as it is shown in a list: a right-to-left one starts with the
+/// invisible right-to-left mark, so numbers and Latin words in it keep
+/// their place.
+pub fn shown_name(s: &str) -> String {
+    if rtl_text(s) {
+        format!("\u{200F}{s}")
+    } else {
+        s.to_string()
+    }
+}
+
+#[cfg(test)]
+mod rtl_tests {
+    #[test]
+    fn first_letter_decides() {
+        assert!(super::rtl_text("07 - طريقة عمل الأرز"));
+        assert!(super::rtl_text("שלום world"));
+        assert!(!super::rtl_text("How to — طريقة"));
+        assert!(!super::rtl_text("123"));
+        assert_eq!(super::shown_name("abc"), "abc");
+        assert_eq!(super::shown_name("أ"), "\u{200F}أ");
     }
 }

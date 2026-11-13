@@ -4,6 +4,9 @@
 #[cfg_attr(not(windows), allow(dead_code))]
 pub enum TrayAction {
     Show,
+    /// one click on the icon: the window opens, or goes to the tray when it
+    /// is already in front
+    Toggle,
     AddUrl,
     ResumeAll,
     StopAll,
@@ -164,15 +167,15 @@ mod imp {
     impl Tray {
         pub fn new() -> Option<Tray> {
             let menu = Menu::new();
-            let show = MenuItem::new("Restore Moo Downloader", true, None);
-            let add = MenuItem::new("Add new download…", true, None);
-            let resume = MenuItem::new("Resume all downloads", true, None);
-            let stop = MenuItem::new("Stop all downloads", true, None);
-            let limiter = CheckMenuItem::new("Speed Limiter", true, false, None);
-            let sched = MenuItem::new("Scheduler…", true, None);
-            let options = MenuItem::new("Options…", true, None);
-            let about = MenuItem::new("About", true, None);
-            let exit = MenuItem::new("Exit", true, None);
+            let show = MenuItem::new(crate::i18n::t("Restore Moo Downloader"), true, None);
+            let add = MenuItem::new(crate::i18n::t("Add new download…"), true, None);
+            let resume = MenuItem::new(crate::i18n::t("Resume all downloads"), true, None);
+            let stop = MenuItem::new(crate::i18n::t("Stop all downloads"), true, None);
+            let limiter = CheckMenuItem::new(crate::i18n::t("Speed Limiter"), true, false, None);
+            let sched = MenuItem::new(crate::i18n::t("Scheduler…"), true, None);
+            let options = MenuItem::new(crate::i18n::t("Options…"), true, None);
+            let about = MenuItem::new(crate::i18n::t("About"), true, None);
+            let exit = MenuItem::new(crate::i18n::t("Exit"), true, None);
             menu.append(&show).ok()?;
             menu.append(&PredefinedMenuItem::separator()).ok()?;
             menu.append(&add).ok()?;
@@ -222,9 +225,12 @@ mod imp {
                     }
                     continue;
                 }
-                // left double click: the window (the menu is on the right button)
-                if let TrayIconEvent::DoubleClick { button: MouseButton::Left, .. } = ev {
-                    out.push(TrayAction::Show);
+                // left click: the window opens / goes away; a double click:
+                // it opens (the menu is on the right button)
+                match ev {
+                    TrayIconEvent::Click { button: MouseButton::Left, button_state: MouseButtonState::Up, .. } => out.push(TrayAction::Toggle),
+                    TrayIconEvent::DoubleClick { button: MouseButton::Left, .. } => out.push(TrayAction::Show),
+                    _ => {}
                 }
             }
             while let Ok(ev) = MenuEvent::receiver().try_recv() {

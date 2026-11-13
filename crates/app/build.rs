@@ -22,7 +22,7 @@ fn main() {
         res.set("ProductName", "Moo Downloader");
         res.set("FileDescription", "Moo Downloader");
         res.set("CompanyName", "Ms-Studio-3d");
-        res.set("LegalCopyright", "Based on Moo Downloader by Ahmed Ezzat; modified by Ms-Studio-3d");
+        res.set("LegalCopyright", "Based on Ezoo Download by Ahmed Ezzat; modified by Ms-Studio-3d");
         res.set("OriginalFilename", "MooDownloader.exe");
         res.set("InternalName", "MooDownloader");
         res.set("ProductVersion", version);

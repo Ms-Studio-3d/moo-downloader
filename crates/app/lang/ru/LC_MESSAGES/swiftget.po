@@ -49,6 +49,12 @@ msgstr "Скачать все или некоторые видео плейли�
 msgid "Download a .torrent file or a magnet link."
 msgstr "Скачать файл .torrent или magnet-ссылку."
 
+msgid "Move to queue"
+msgstr "Переместить в очередь"
+
+msgid "Delete from queue"
+msgstr "Убрать из очереди"
+
 msgid "{} downloads selected"
 msgstr "Выбрано загрузок: {}"
 
@@ -63,6 +69,9 @@ msgstr "Открыть с помощью…"
 
 msgid "Play while downloading"
 msgstr "Воспроизвести во время загрузки"
+
+msgid "Download a part of it…"
+msgstr "Скачать часть…"
 
 msgid "Open folder"
 msgstr "Открыть папку"
@@ -81,12 +90,6 @@ msgstr "Обновить адрес загрузки…"
 
 msgid "Move / Rename…"
 msgstr "Переместить / Переименовать…"
-
-msgid "Move to queue"
-msgstr "Переместить в очередь"
-
-msgid "Delete from queue"
-msgstr "Убрать из очереди"
 
 msgid "Copy address"
 msgstr "Копировать адрес"
@@ -180,6 +183,9 @@ msgstr "Запустить сборщик сайтов…"
 
 msgid "Download a playlist…"
 msgstr "Скачать плейлист…"
+
+msgid "Download a part of a video…"
+msgstr "Скачать часть видео…"
 
 msgid "Add a torrent / magnet link…"
 msgstr "Добавить торрент / magnet-ссылку…"
@@ -340,6 +346,18 @@ msgstr "Бирюзовая ночь"
 msgid "Rose"
 msgstr "Розовая"
 
+msgid "3D"
+msgstr "3D"
+
+msgid "Aurora glass"
+msgstr "Северное стекло"
+
+msgid "Soft clay"
+msgstr "Мягкая глина"
+
+msgid "Cyber neon"
+msgstr "Кибер-неон"
+
 msgid "Appearance…"
 msgstr "Оформление…"
 
@@ -465,6 +483,12 @@ msgstr "Запомнить этот путь для категории \"{}\""
 
 msgid "optional note"
 msgstr "примечание (необязательно)"
+
+msgid "Checksum"
+msgstr "Контрольная сумма"
+
+msgid "MD5 / SHA-1 / SHA-256 (optional)"
+msgstr "MD5 / SHA-1 / SHA-256 (необязательно)"
 
 msgid "Use authorization"
 msgstr "Использовать авторизацию"
@@ -592,11 +616,35 @@ msgstr "Показывать окно \"Загрузка завершена\""
 msgid "You get 30 seconds to cancel before the computer shuts down, sleeps or hibernates."
 msgstr "У вас будет 30 секунд на отмену, прежде чем компьютер выключится или перейдёт в спящий режим или гибернацию."
 
+msgid "Files"
+msgstr "Файлы"
+
+msgid "People"
+msgstr "Участники"
+
+msgid "Trackers"
+msgstr "Трекеры"
+
+msgid "Add tracker"
+msgstr "Добавить трекер"
+
+msgid "First and last pieces first"
+msgstr "Сначала первые и последние фрагменты"
+
+msgid "Check the files again"
+msgstr "Проверить файлы заново"
+
+msgid "Copy magnet link"
+msgstr "Копировать magnet-ссылку"
+
 msgid "<< Hide details"
 msgstr "<< Скрыть подробности"
 
 msgid "Show details >>"
 msgstr "Подробнее >>"
+
+msgid "Next to the clock"
+msgstr "К часам"
 
 msgid "Pause"
 msgstr "Пауза"
@@ -613,8 +661,8 @@ msgstr "№"
 msgid "Info"
 msgstr "Инфо"
 
-msgid "Hide next to the clock"
-msgstr "Спрятать к часам"
+msgid "Drag me"
+msgstr "Перетащи меня"
 
 msgid "Download complete"
 msgstr "Загрузка завершена"
@@ -733,6 +781,12 @@ msgstr "Если завершена — показать, если нет — п
 msgid "Remember my choice (Options > Downloads)"
 msgstr "Запомнить мой выбор (Параметры > Загрузки)"
 
+msgid "Delete the downloaded files from the disk too (be careful)"
+msgstr "Удалить и скачанные файлы с диска (осторожно)"
+
+msgid "Don't show this question again"
+msgstr "Больше не задавать этот вопрос"
+
 msgid "All downloads are finished."
 msgstr "Все загрузки завершены."
 
@@ -783,6 +837,9 @@ msgstr "Сб"
 
 msgid "Sun"
 msgstr "Вс"
+
+msgid "Wake the computer from sleep to start it"
+msgstr "Выводить компьютер из сна для запуска"
 
 msgid "Start the queue when Moo Downloader starts"
 msgstr "Запускать очередь при запуске Moo Downloader"
@@ -840,6 +897,9 @@ msgstr "https://example.com/gallery/"
 
 msgid "Start exploring"
 msgstr "Начать обход"
+
+msgid "Some pages make their links only in the browser (with scripts, or as plain text). For them: open the page in the browser, right-click it and choose \"Download all links with Moo Downloader\": every link you see there is collected."
+msgstr "Некоторые страницы создают ссылки только в браузере (скриптами или простым текстом). Для них: откройте страницу в браузере, щёлкните правой кнопкой и выберите \"Download all links with Moo Downloader\": будет собрана каждая видимая ссылка."
 
 msgid "Get"
 msgstr "Собирать"
@@ -1033,6 +1093,9 @@ msgstr "Следить за буфером обмена на ссылки для
 msgid "Automatically start downloading links placed in the clipboard"
 msgstr "Автоматически скачивать ссылки, попавшие в буфер обмена"
 
+msgid "Draw the windows with the graphics card (uses more memory; after a restart)"
+msgstr "Рисовать окна видеокартой (больше памяти; после перезапуска)"
+
 msgid "Show \"Tip of the day\" at startup"
 msgstr "Показывать \"Совет дня\" при запуске"
 
@@ -1125,6 +1188,18 @@ msgstr "Показывать окно \"Сведения о файле\" для 
 
 msgid "Start downloading immediately while showing \"Download File Info\""
 msgstr "Сразу начинать загрузку, показывая \"Сведения о файле\""
+
+msgid "For a playlist or several files added together: one window for each file (not one at the end)"
+msgstr "Для плейлиста или нескольких файлов, добавленных вместе: окно для каждого файла (а не одно в конце)"
+
+msgid "Ask before removing downloads from the list"
+msgstr "Спрашивать перед удалением загрузок из списка"
+
+msgid "Quality of MP3 files"
+msgstr "Качество файлов MP3"
+
+msgid "Download the subtitles of videos too, in these languages:"
+msgstr "Скачивать и субтитры видео на этих языках:"
 
 msgid "Show the download progress window"
 msgstr "Показывать окно хода загрузки"
@@ -1282,14 +1357,29 @@ msgstr "Включить ограничитель скорости"
 msgid "Always turn on the speed limiter when Moo Downloader starts"
 msgstr "Всегда включать ограничитель при запуске Moo Downloader"
 
+msgid "Limit only while I use the computer (full speed after a minute without the mouse or keyboard)"
+msgstr "Ограничивать только пока я пользуюсь компьютером (полная скорость после минуты без мыши и клавиатуры)"
+
 msgid "Every download can also have its own limit: its progress window > Speed Limiter tab."
 msgstr "У каждой загрузки может быть свой лимит: её окно хода загрузки > вкладка «Ограничитель скорости»."
+
+msgid "Make Moo Downloader the main program for torrents"
+msgstr "Сделать Moo Downloader основной программой для торрентов"
+
+msgid "On: magnet links and .torrent files open in Moo Downloader, from the browser and from Windows. Off: they stay with the browser and your own torrent program."
+msgstr "Вкл.: magnet-ссылки и файлы .torrent открываются в Moo Downloader — из браузера и из Windows. Выкл.: они остаются браузеру и вашей программе для торрентов."
 
 msgid "Keep sharing a finished torrent for (minutes)"
 msgstr "Раздавать завершённый торрент ещё (минут)"
 
 msgid "0 = stop as soon as all files are here. Sharing longer helps the others who download the same torrent."
 msgstr "0 = остановиться, как только все файлы получены. Раздача подольше помогает тем, кто качает тот же торрент."
+
+msgid "Stop sharing once it sent (times what it received)"
+msgstr "Прекращать раздачу, когда отдано (во столько раз больше полученного)"
+
+msgid "No limit"
+msgstr "Без ограничения"
 
 msgid "Maximum upload speed (KB/s, 0 = no limit)"
 msgstr "Наибольшая скорость отдачи (КБ/с, 0 = без ограничения)"
@@ -1378,6 +1468,9 @@ msgstr "Файлов одновременно"
 msgid "Number the files"
 msgstr "Нумеровать файлы"
 
+msgid "Subtitles too"
+msgstr "И субтитры"
+
 msgid "Not installed on this computer"
 msgstr "Не установлен на этом компьютере"
 
@@ -1390,6 +1483,12 @@ msgstr "Нажмите на свой браузер:"
 msgid "Almost done:"
 msgstr "Почти готово:"
 
+msgid "Test the link"
+msgstr "Проверить связь"
+
+msgid "Repair the add-in"
+msgstr "Восстановить дополнение"
+
 msgid "Copy folder path"
 msgstr "Копировать путь к папке"
 
@@ -1399,17 +1498,95 @@ msgstr "Версия {}"
 msgid "Coded by Ahmed Ezzat"
 msgstr "Автор: Ahmed Ezzat"
 
+msgid "Official download page (GitHub)"
+msgstr "Официальная страница загрузки (GitHub)"
+
+msgid "Download Moo Downloader only from its official page."
+msgstr "Скачивайте Moo Downloader только с официальной страницы."
+
+msgid "© Ezoo Tech – All rights reserved"
+msgstr "© Ezoo Tech – Все права защищены"
+
 msgid "Like Moo Downloader? You can support its development:"
 msgstr "Нравится Moo Downloader? Вы можете поддержать разработку:"
 
 msgid "Support with PayPal"
 msgstr "Поддержать через PayPal"
 
+msgid "Support with InstaPay"
+msgstr "Поддержать через InstaPay"
+
+msgid "InstaPay: a7medek@instapay (scan the code with your bank's app)"
+msgstr "InstaPay: a7medek@instapay (отсканируйте код приложением банка)"
+
+msgid "Download a part of a video"
+msgstr "Скачать часть видео"
+
+msgid "Paste the address of the video (its page, or a link to the video or stream):"
+msgstr "Вставьте адрес видео (его страницу или ссылку на видео или поток):"
+
+msgid "Looking…"
+msgstr "Поиск…"
+
+msgid "Get the video"
+msgstr "Получить видео"
+
+msgid "Quality:"
+msgstr "Качество:"
+
+msgid "From:"
+msgstr "С:"
+
+msgid "To:"
+msgstr "По:"
+
+msgid "Length:"
+msgstr "Длительность:"
+
+msgid "Cut:"
+msgstr "Обрезка:"
+
+msgid "Quick cut (recommended)"
+msgstr "Быстрая обрезка (рекомендуется)"
+
+msgid "Exact cut"
+msgstr "Точная обрезка"
+
+msgid "Quick cut"
+msgstr "Быстрая обрезка"
+
+msgid "Takes seconds and keeps the quality exactly as it is (nothing is made again). A video can only start on a whole picture, so the part may start a second or two before the time you chose."
+msgstr "Занимает секунды и сохраняет качество без изменений (ничего не пересоздаётся). Видео может начинаться только с полного кадра, поэтому часть может начаться на секунду-две раньше выбранного времени."
+
+msgid "Starts and ends on the very second you chose. The picture of the part is made again, so it takes longer (about as long as the part plays, or less) and works the processor. Sound alone is always cut exactly."
+msgstr "Начинается и заканчивается точно в выбранную секунду. Изображение части создаётся заново, поэтому это дольше (примерно как длится часть или меньше) и нагружает процессор. Звук отдельно всегда обрезается точно."
+
+msgid "Preparing the preview…"
+msgstr "Подготовка просмотра…"
+
+msgid "Preview the part"
+msgstr "Посмотреть часть"
+
+msgid "Download the part"
+msgstr "Скачать часть"
+
+msgid "Support Moo Downloader"
+msgstr "Поддержать Moo Downloader"
+
+msgid "Did Moo Downloader save you time?"
+msgstr "Moo Downloader сэкономил вам время?"
+
+msgid "It is free and has no ads. If you like, you can support its development with any amount."
+msgstr "Программа бесплатная и без рекламы. Если хотите, можете поддержать её развитие любой суммой."
+
+msgid "Not now"
+msgstr "Не сейчас"
+
 msgid "What's new in Moo Downloader"
 msgstr "Что нового в Moo Downloader"
 
-msgid "Moo Downloader is free and has no ads. If it helps you and you would like to support its development, you can send a gift with PayPal. Thank you!"
-msgstr "Moo Downloader бесплатный и без рекламы. Если он вам полезен и вы хотите поддержать его развитие, можно отправить пожертвование через PayPal. Спасибо!"
+msgid "Moo Downloader is free and has no ads. If it helps you and you would like to support its development, you can send a gift with PayPal or InstaPay. Thank you!"
+msgstr "Moo Downloader бесплатный и без рекламы. Если он вам полезен и вы хотите поддержать разработку, можно отправить подарок через PayPal или InstaPay. Спасибо!"
 
 msgid "Hide"
 msgstr "Скрыть"

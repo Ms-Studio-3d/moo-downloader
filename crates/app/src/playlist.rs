@@ -6,7 +6,10 @@ use crate::*;
 
 use crate::i18n::{t, tf};
 
-const QUALITIES: [&str; 9] = ["best", "2160", "1440", "1080", "720", "480", "360", "audio", "mp3"];
+/// How many times a playlist video that failed is tried again.
+const PLAYLIST_RETRIES: u32 = 3;
+
+const QUALITIES: [&str; 11] = ["best", "2160", "1440", "1080", "720", "480", "360", "240", "144", "audio", "mp3"];
 
 pub(crate) fn open(ui: &Ui) {
     let Some(d) = ui.playlist.upgrade() else { return };
@@ -18,6 +21,7 @@ pub(crate) fn open(ui: &Ui) {
             d.set_url(clip.into());
         }
         d.set_message(SharedString::new());
+        d.set_subtitles(ui.ctx.mgr.settings().subtitles);
     }
     open_window!(d);
     d.window().set_minimized(false);
@@ -55,6 +59,7 @@ pub(crate) fn wire(ui: &Ui) {
     let Some(d) = ui.playlist.upgrade() else { return };
     let rows = ui.playlist_rows.clone();
     d.set_entries(ModelRc::from(rows.clone()));
+    d.set_subtitles(ui.ctx.mgr.settings().subtitles);
     {
         let (w, mgr) = (d.as_weak(), ui.ctx.mgr.clone());
         d.on_fetch(move || {
@@ -69,8 +74,10 @@ pub(crate) fn wire(ui: &Ui) {
             d.set_status(t("Getting the list of videos… (a few seconds)").into());
             let w2 = d.as_weak();
             let base = mgr.settings().dir_for("Video");
+            // the names in the program's language (when the site has them)
+            let lang = crate::i18n::effective(&mgr.settings().language).to_string();
             std::thread::spawn(move || {
-                let result = swiftget_engine::ytdlp::playlist(&url);
+                let result = swiftget_engine::ytdlp::playlist(&url, &lang);
                 let _ = slint::invoke_from_event_loop(move || {
                     let Some(d) = w2.upgrade() else { return };
                     d.set_busy(false);
@@ -85,7 +92,8 @@ pub(crate) fn wire(ui: &Ui) {
                                 .enumerate()
                                 .map(|(i, e)| LinkRow {
                                     checked: true,
-                                    name: e.title.clone().into(),
+                                    name: crate::i18n::shown_name(&e.title).into(),
+                                    rtl: crate::i18n::rtl_text(&e.title),
                                     kind: "video".into(),
                                     ext: fmt_len(e.duration).into(),
                                     text: format!("{}", i + 1).into(),
@@ -137,7 +145,7 @@ pub(crate) fn wire(ui: &Ui) {
         let w = d.as_weak();
         d.on_browse(move || {
             let Some(d) = w.upgrade() else { return };
-            if let Some(dir) = rfd::FileDialog::new().pick_folder() {
+            if let Some(dir) = crate::winfx::file_box().pick_folder() {
                 d.set_folder(dir.display().to_string().into());
             }
         });
@@ -163,16 +171,34 @@ pub(crate) fn wire(ui: &Ui) {
             let title = d.get_playlist_title().to_string();
             // its own queue: N videos at a time, all into the folder
             let name = if title.trim().is_empty() { "Playlist".to_string() } else { title.trim().chars().take(60).collect() };
-            let queue = match ui.ctx.mgr.add_queue(&name, d.get_parallel().clamp(1, 8) as u32, Some(folder.clone())) {
+            // a few at a time (many at once and the site asks to confirm you
+            // are not a robot); a video that fails is tried again by itself
+            let queue = match ui.ctx.mgr.add_queue(&name, d.get_parallel().clamp(1, 3) as u32, Some(folder.clone())) {
                 Ok(q) => q,
                 Err(e) => {
                     d.set_message(format!("{e:#}").into());
                     return;
                 }
             };
+            if let Some(mut def) = ui.ctx.mgr.settings().queue(queue).cloned() {
+                def.retries = PLAYLIST_RETRIES;
+                let _ = ui.ctx.mgr.update_queue(def);
+            }
+            // "Subtitles too": the same switch as in Options > Downloads
+            {
+                let mut s = ui.ctx.mgr.settings();
+                if s.subtitles != d.get_subtitles() {
+                    s.subtitles = d.get_subtitles();
+                    if s.subtitles && s.subtitle_langs.trim().is_empty() {
+                        s.subtitle_langs = "ar en".into();
+                    }
+                    let _ = ui.ctx.mgr.set_settings(s);
+                }
+            }
             let width = chosen.len().to_string().len().max(2);
+            let group = Some(ui.ctx.mgr.new_group());
             for r in &chosen {
-                let mut file = filename::sanitize(&r.name);
+                let mut file = filename::sanitize(r.name.trim_start_matches('\u{200F}'));
                 if d.get_numbered() {
                     let n: usize = r.text.parse().unwrap_or(0);
                     file = format!("{n:0width$} - {file}");
@@ -185,6 +211,7 @@ pub(crate) fn wire(ui: &Ui) {
                     pick_quality: Some(quality.clone()),
                     queue: Some(queue),
                     description: Some(title.clone()).filter(|t| !t.is_empty()),
+                    group,
                     start: false,
                     ..Default::default()
                 });

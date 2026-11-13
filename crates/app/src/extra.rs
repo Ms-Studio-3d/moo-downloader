@@ -238,6 +238,7 @@ pub(crate) fn open_properties(ui: &Ui, id: u64) {
     d.set_url(v.url.clone().into());
     d.set_referer(v.referer().to_string().into());
     d.set_description(v.description.clone().unwrap_or_default().into());
+    d.set_checksum(v.checksum.clone().unwrap_or_default().into());
     d.set_use_login(v.headers.auth.is_some());
     d.set_user(v.headers.auth.as_ref().map(|a| a.0.clone()).unwrap_or_default().into());
     d.set_password(v.headers.auth.as_ref().map(|a| a.1.clone()).unwrap_or_default().into());
@@ -250,20 +251,43 @@ fn save_properties(ui: &Ui) {
     let Some(v) = ui.ctx.mgr.get(id) else { return };
     let auth = (d.get_use_login() && !d.get_user().trim().is_empty())
         .then(|| (d.get_user().trim().to_string(), d.get_password().to_string()));
+    let checksum = d.get_checksum().trim().to_string();
+    if !checksum.is_empty() && swiftget_engine::checksum::Expected::parse(&checksum).is_none() {
+        d.set_message(t("This is not a checksum: paste its MD5, SHA-1, SHA-256, SHA-384 or SHA-512 value").into());
+        return;
+    }
     let edit = DetailsEdit {
         url: (v.status != Status::Completed).then(|| d.get_url().trim().to_string()),
         referer: Some(d.get_referer().trim().to_string()),
         description: Some(d.get_description().trim().to_string()),
         auth,
+        checksum: Some(checksum),
     };
     if let Err(e) = ui.ctx.mgr.update_details(id, edit) {
         d.set_message(format!("{e:#}").into());
         return;
     }
-    let target = PathBuf::from(d.get_save_to().trim());
+    let mut target = PathBuf::from(d.get_save_to().trim());
+    // a name typed without its extension keeps the file's own
+    if let Some(n) = target.file_name().map(|n| crate::with_extension_of(&n.to_string_lossy(), &v.file_name)) {
+        target.set_file_name(n);
+    }
     if !target.as_os_str().is_empty() && target != v.save_path {
         let result = if v.status == Status::Completed {
-            ui.ctx.mgr.move_file(id, &target)
+            // on its own thread: a move to another disk is a copy
+            let mgr = ui.ctx.mgr.clone();
+            std::thread::spawn(move || {
+                if let Err(e) = mgr.move_file(id, &target, false) {
+                    let text = format!("{e:#}");
+                    let text = if text.contains("is already in that folder") {
+                        crate::i18n::t("A file with this name is already in that folder, so nothing was moved. Choose another name.")
+                    } else {
+                        text
+                    };
+                    let _ = slint::invoke_from_event_loop(move || crate::message(&text));
+                }
+            });
+            Ok(())
         } else {
             let dir = target.parent().map(Path::to_path_buf).unwrap_or_default();
             let name = target.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
@@ -314,14 +338,25 @@ pub(crate) fn start_countdown(ui: &Ui, action: AfterDone) {
 }
 
 pub(crate) fn tick_countdown(ui: &Ui) {
+    // a file still being put together (joined, checked, moved): the time
+    // waits for it, then starts again from the beginning
+    let waiting = if ui.power.borrow().is_some() { ui.ctx.mgr.finishing() } else { None };
     let left = {
         let mut p = ui.power.borrow_mut();
         let Some((_, left)) = p.as_mut() else { return };
-        *left -= 1;
+        if waiting.is_some() {
+            *left = COUNTDOWN;
+        } else {
+            *left -= 1;
+        }
         *left
     };
     if let Some(d) = ui.countdown.upgrade() {
         d.set_seconds_left(left.max(0));
+        d.set_waiting_text(match &waiting {
+            Some(name) => tf("Waiting for \"{}\" to be finished first (its parts are being put together).", &[name]).into(),
+            None => SharedString::new(),
+        });
     }
     if left <= 0 {
         power_now(ui);
@@ -329,6 +364,13 @@ pub(crate) fn tick_countdown(ui: &Ui) {
 }
 
 fn power_now(ui: &Ui) {
+    // ("Now" while a file is still being put together: it waits for it)
+    if ui.ctx.mgr.finishing().is_some() {
+        if let Some(p) = ui.power.borrow_mut().as_mut() {
+            p.1 = 1;
+        }
+        return;
+    }
     let Some((action, _)) = ui.power.borrow_mut().take() else { return };
     if let Some(d) = ui.countdown.upgrade() {
         let _ = d.hide();
@@ -349,22 +391,26 @@ pub(crate) fn is_web_address(s: &str) -> bool {
 }
 
 /// What the newest version brings (shown once after an automatic update).
-const WHATS_NEW: [&str; 15] = [
-    "Torrents: open a .torrent file or a magnet link and choose which of its files to download.",
-    "A dropped internet connection no longer stops a download: it waits and goes on by itself from where it was.",
-    "An expired link or a removed file is explained in plain words, with what to do about it.",
-    "Watch a video or listen to a song while it is still downloading (right-click > Play while downloading).",
-    "YouTube videos can be saved as MP3 files.",
-    "Qualities are shown in plain words too: SD, HD, Full HD, 2K, 4K.",
-    "The video button in the browser lists every quality with its format, length and size, has a size slider, and works on videos in frames, in full screen and in more players.",
-    "Videos that need a login or an age check use your browser's sign-in, also in playlists.",
-    "Toolbar buttons explain what they do when the mouse rests on them.",
-    "A download's window can be hidden next to the clock.",
-    "The browser add-in can be paused from its own window, without turning it off in the browser's extensions page.",
-    "File icons are easier to tell apart.",
-    "Menus show one clear mark on the chosen option.",
-    "The window of a finished download no longer offers \"Open with…\", so a file can't be changed by mistake.",
-    "Fixed a crash around the Tips window.",
+pub(crate) const WHATS_NEW: [&str; 19] = [
+    "The Site Grabber finds the files behind download links that show no file name and asks the server for their real names and sizes, a playlist shows one \"Download complete\" window at the end instead of one for every file, and the computer is never shut down or put to sleep while a file is still being put together.",
+    "Torrents are shared by the program itself now, with no helper program: they start sooner, use less of the computer, and a stopped torrent goes on after a restart without checking all its pieces again.",
+    "FTP and FTPS links download like web links: in parts, with resume, and with the user name and password kept apart from the address.",
+    "Checksum: paste an MD5, SHA-1 or SHA-256 value in Download File Info (or the site gives one) and the file is checked when it finishes.",
+    "Torrents have their own tab in Properties: the files (choose them while it runs), the people, the trackers and the pieces. Add a tracker, check the files again, copy the magnet link, first and last pieces first, and stop sharing at a ratio you choose.",
+    "Safer resume: a file that changed on the server is noticed instead of being joined with the old parts, links that lead through a few pages to the file are followed, and downloads that need a form sent from the browser work.",
+    "The speed limit can work only while you use the computer, and a scheduled queue can wake the computer from sleep to start.",
+    "Keyboard shortcuts for the list (F1 shows them), a command line for other programs and scripts, and Help > Add Moo Downloader to my browser > Test the link checks the add-in step by step.",
+    "The add-in works in private windows too (allow it there in the browser), keeps the browser's own download when the program is closed, and its video button can be moved or hidden on a site.",
+    "Four new 3D looks (View): 3D, Aurora glass, Soft clay and Cyber neon, with raised buttons, colored pictures, downloads on floating cards and a new download window with a progress ring and the speed.",
+    "The setup asks for the language of the program at the first install, and can let torrents through the Windows firewall.",
+    "Options > Torrents: make Moo Downloader the main program for torrents, or leave magnet links and .torrent files to your own torrent program.",
+    "A torrent that is connected but gets nothing looks for other people by itself, and says why it waits.",
+    "Playlists: names in the program's language, right-to-left names shown from the right, a few videos at a time, and a video that fails is tried again by itself.",
+    "The add-in has one tab for the whole video and one for a part of it, and it never downloads the video that played before in the same player.",
+    "The right-click menu of the list is a real Windows menu that is never cut off, in the look of the program.",
+    "Sites that refuse extra connections: the download goes on with fewer. Up to 64 connections. A site that asks for a robot check says so, and the Firefox add-on is fetched from the official page when it is missing.",
+    "The add-in talks to the program directly, without a port: no more \"Moo Downloader is not running\" while it runs, and a closed program is opened for a download.",
+    "A power cut no longer loses the download list, the end of a download is never held by one slow connection, and a file that is already in the folder asks whether to replace it.",
 ];
 
 thread_local! {
@@ -377,12 +423,12 @@ pub(crate) fn whats_new(ui: &Ui) {
     let Ok(d) = WhatsNewDialog::new() else { return };
     crate::set_theme_of(d.global::<Theme>(), &crate::Look::of(&ui.ctx.mgr.settings()));
     d.set_rtl(crate::i18n::is_arabic());
-    d.set_heading(tf("Moo Downloader was updated to version {} by itself.", &[&env!("CARGO_PKG_VERSION")]).into());
+    d.set_heading(tf("Moo Downloader is now version {}.", &[&env!("CARGO_PKG_VERSION")]).into());
     let items: Vec<SharedString> = WHATS_NEW.iter().map(|l| t(l).into()).collect();
     d.set_items(ModelRc::new(VecModel::from(items)));
     d.on_open_link(|u| {
         if u.starts_with("https://") {
-            let _ = open::that(u.as_str());
+            let _ = open::that_detached(u.as_str());
         }
     });
     let w = d.as_weak();
@@ -395,6 +441,103 @@ pub(crate) fn whats_new(ui: &Ui) {
     });
     open_window!(d);
     WHATS_NEW_WIN.with(|x| *x.borrow_mut() = Some(d));
+}
+
+// ---------------------------------------------------------------- AV1 videos
+
+/// The first video in AV1 (a much smaller file of the same picture, what
+/// Facebook and YouTube give in their best qualities): Windows plays its
+/// sound but shows no picture without Microsoft's free AV1 extension. Said
+/// once, a moment after it finished.
+pub(crate) fn av1_tip(ui: &Ui, done: &[u64]) {
+    let s = ui.ctx.mgr.settings();
+    if s.av1_tip_shown {
+        return;
+    }
+    let av1 = done
+        .iter()
+        .filter_map(|id| ui.ctx.mgr.get(*id))
+        .any(|v| v.source_key.as_deref().is_some_and(|k| k.contains("AV1")) && v.status == Status::Completed);
+    if !av1 {
+        return;
+    }
+    let mut s = s;
+    s.av1_tip_shown = true;
+    let _ = ui.ctx.mgr.set_settings(s);
+    slint::Timer::single_shot(std::time::Duration::from_secs(2), move || {
+        let text = t("This video is in AV1 (the same picture in a much smaller file). If your player plays only its sound, without the picture, get Microsoft's free \"AV1 Video Extension\" (or play it with VLC).\n\nOpen it in the Microsoft Store now?");
+        if crate::ask(&text) {
+            let _ = open::that_detached("ms-windows-store://search/?query=AV1%20Video%20Extension");
+        }
+    });
+}
+
+// ---------------------------------------------------------------- support
+
+/// Finished downloads before the word about supporting the program shows.
+const SUPPORT_AFTER: u64 = 50;
+/// And then not again for a month.
+const SUPPORT_EVERY: u64 = 30 * 24 * 3600;
+
+/// Shown now? (`count` downloads finished, last shown at `asked`, 0 = never)
+fn support_due(count: u64, asked: u64, now: u64) -> bool {
+    count >= SUPPORT_AFTER && (asked == 0 || now.saturating_sub(asked) >= SUPPORT_EVERY)
+}
+
+thread_local! {
+    static SUPPORT_WIN: std::cell::RefCell<Option<SupportDialog>> = const { std::cell::RefCell::new(None) };
+}
+
+/// `n` downloads just finished well: counted, and once it is time the small
+/// word about supporting the program shows (a few seconds later, when no
+/// other message is open and the main window is on the screen).
+pub(crate) fn finished_well(ui: &Ui, n: usize) {
+    if n == 0 {
+        return;
+    }
+    let mut s = ui.ctx.mgr.settings();
+    s.finished_count = s.finished_count.saturating_add(n as u64);
+    let due = support_due(s.finished_count, s.support_asked_at, crate::api::now_secs());
+    let _ = ui.ctx.mgr.set_settings(s);
+    if due {
+        let ui = ui.clone();
+        slint::Timer::single_shot(std::time::Duration::from_secs(3), move || ask_support_when_free(ui, 0));
+    }
+}
+
+fn ask_support_when_free(ui: Ui, tries: u32) {
+    let s = ui.ctx.mgr.settings();
+    if !support_due(s.finished_count, s.support_asked_at, crate::api::now_secs()) || SUPPORT_WIN.with(|x| x.borrow().is_some()) {
+        return;
+    }
+    let main_shown = ui.ctx.main.upgrade().map(|m| m.window().is_visible() && !m.window().is_minimized()).unwrap_or(false);
+    if modal_open() || !main_shown {
+        // not over another message, not while the program is next to the
+        // clock: the next finished download tries again
+        if tries < 40 && main_shown {
+            slint::Timer::single_shot(std::time::Duration::from_secs(3), move || ask_support_when_free(ui, tries + 1));
+        }
+        return;
+    }
+    let Ok(d) = SupportDialog::new() else { return };
+    crate::set_theme_of(d.global::<Theme>(), &crate::Look::of(&s));
+    let mut s = s;
+    s.support_asked_at = crate::api::now_secs();
+    let _ = ui.ctx.mgr.set_settings(s);
+    d.on_open_link(|u| {
+        if u.starts_with("https://") {
+            let _ = open::that_detached(u.as_str());
+        }
+    });
+    let w = d.as_weak();
+    d.on_close_window(move || {
+        if let Some(d) = w.upgrade() {
+            let _ = d.hide();
+        }
+        slint::Timer::single_shot(std::time::Duration::from_millis(1), || SUPPORT_WIN.with(|x| *x.borrow_mut() = None));
+    });
+    open_window!(d);
+    SUPPORT_WIN.with(|x| *x.borrow_mut() = Some(d));
 }
 
 const TIPS: [&str; 14] = [
@@ -470,8 +613,8 @@ pub(crate) fn refresh_received(ui: &Ui, id: u64, url: &str, headers: RequestHead
 
 pub(crate) fn export_list(mgr: &Arc<Manager>, kind: &str) {
     let ef2 = kind == "ef2";
-    let Some(path) = rfd::FileDialog::new()
-        .set_file_name(if ef2 { "ezoo-download-list.ef2" } else { "ezoo-download-links.txt" })
+    let Some(path) = crate::winfx::file_box()
+        .set_file_name(if ef2 { "moo-downloader-list.ef2" } else { "moo-downloader-links.txt" })
         .add_filter(if ef2 { "Download list" } else { "Text file" }, &[if ef2 { "ef2" } else { "txt" }])
         .save_file()
     else {
@@ -501,7 +644,7 @@ pub(crate) fn export_list(mgr: &Arc<Manager>, kind: &str) {
 
 pub(crate) fn import_list(ui: &Ui, kind: &str) {
     let ef2 = kind == "ef2";
-    let Some(path) = rfd::FileDialog::new()
+    let Some(path) = crate::winfx::file_box()
         .add_filter(if ef2 { "Download list" } else { "Text file" }, &[if ef2 { "ef2" } else { "txt" }])
         .pick_file()
     else {
@@ -516,11 +659,13 @@ pub(crate) fn import_list(ui: &Ui, kind: &str) {
         return message(&t("No download addresses were found in this file."));
     }
     let mut added = 0;
+    let group = Some(ui.ctx.mgr.new_group());
     for it in items {
         if ui.ctx.mgr.find_url(&it.url).is_some() {
             continue;
         }
         ui.ctx.mgr.add(NewDownload {
+            group,
             url: it.url,
             file_name: it.file_name,
             headers: RequestHeaders {
@@ -581,7 +726,7 @@ pub(crate) fn wire(ui: &Ui) {
             let w = d.as_weak();
             d.on_browse(move || {
                 let Some(d) = w.upgrade() else { return };
-                if let Some(dir) = rfd::FileDialog::new().pick_folder() {
+                if let Some(dir) = crate::winfx::file_box().pick_folder() {
                     d.set_folder(dir.display().to_string().into());
                 }
             });
@@ -619,7 +764,7 @@ pub(crate) fn wire(ui: &Ui) {
             d.on_browse(move || {
                 let Some(d) = w.upgrade() else { return };
                 let current = PathBuf::from(d.get_save_to().as_str());
-                let mut dlg = rfd::FileDialog::new();
+                let mut dlg = crate::winfx::file_box();
                 if let Some(dir) = current.parent().filter(|p| p.exists()) {
                     dlg = dlg.set_directory(dir);
                 }
@@ -733,7 +878,7 @@ pub(crate) fn wire(ui: &Ui) {
                     // only a web page: the address came from the browser or
                     // a list file and must never start a program
                     if is_web_address(&page) {
-                        let _ = open::that(page.trim());
+                        let _ = open::that_detached(page.trim());
                     }
                 }
             });
@@ -772,7 +917,17 @@ pub(crate) fn wire(ui: &Ui) {
 
 #[cfg(test)]
 mod tests {
-    use super::is_web_address;
+    use super::{is_web_address, support_due};
+
+    #[test]
+    fn support_word_after_50_then_once_a_month() {
+        let day = 24 * 3600;
+        let now = 1_800_000_000;
+        assert!(!support_due(49, 0, now));
+        assert!(support_due(50, 0, now));
+        assert!(!support_due(500, now - 29 * day, now), "not again before a month");
+        assert!(support_due(500, now - 30 * day, now));
+    }
 
     #[test]
     fn only_web_pages_are_opened() {

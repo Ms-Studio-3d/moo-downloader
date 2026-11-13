@@ -49,6 +49,12 @@ msgstr "تحميل كل فيديوهات قائمة تشغيل أو بعضها."
 msgid "Download a .torrent file or a magnet link."
 msgstr "تحميل ملف تورنت أو رابط magnet."
 
+msgid "Move to queue"
+msgstr "نقل إلى قائمة الانتظار"
+
+msgid "Delete from queue"
+msgstr "حذف من قائمة الانتظار"
+
 msgid "{} downloads selected"
 msgstr "تم تحديد {} تحميلات"
 
@@ -63,6 +69,9 @@ msgstr "فتح باستخدام…"
 
 msgid "Play while downloading"
 msgstr "تشغيل أثناء التحميل"
+
+msgid "Download a part of it…"
+msgstr "تحميل جزء منه…"
 
 msgid "Open folder"
 msgstr "فتح المجلد"
@@ -81,12 +90,6 @@ msgstr "تحديث رابط التحميل…"
 
 msgid "Move / Rename…"
 msgstr "نقل / إعادة تسمية…"
-
-msgid "Move to queue"
-msgstr "نقل إلى قائمة الانتظار"
-
-msgid "Delete from queue"
-msgstr "حذف من قائمة الانتظار"
 
 msgid "Copy address"
 msgstr "نسخ الرابط"
@@ -180,6 +183,9 @@ msgstr "تشغيل جامع المواقع…"
 
 msgid "Download a playlist…"
 msgstr "تحميل قائمة تشغيل…"
+
+msgid "Download a part of a video…"
+msgstr "تحميل جزء من فيديو…"
 
 msgid "Add a torrent / magnet link…"
 msgstr "إضافة تورنت / رابط magnet…"
@@ -340,6 +346,18 @@ msgstr "ليل فيروزي"
 msgid "Rose"
 msgstr "وردي"
 
+msgid "3D"
+msgstr "ثلاثي الأبعاد 3D"
+
+msgid "Aurora glass"
+msgstr "زجاج الشفق"
+
+msgid "Soft clay"
+msgstr "صلصال ناعم"
+
+msgid "Cyber neon"
+msgstr "نيون سايبر"
+
 msgid "Appearance…"
 msgstr "المظهر…"
 
@@ -465,6 +483,12 @@ msgstr "تذكّر هذا المسار لتصنيف \"{}\""
 
 msgid "optional note"
 msgstr "ملاحظة اختيارية"
+
+msgid "Checksum"
+msgstr "رمز التحقق"
+
+msgid "MD5 / SHA-1 / SHA-256 (optional)"
+msgstr "MD5 / SHA-1 / SHA-256 (اختياري)"
 
 msgid "Use authorization"
 msgstr "استخدام تسجيل الدخول"
@@ -592,11 +616,35 @@ msgstr "إظهار نافذة \"اكتمل التحميل\""
 msgid "You get 30 seconds to cancel before the computer shuts down, sleeps or hibernates."
 msgstr "لديك 30 ثانية للإلغاء قبل إيقاف الكمبيوتر أو السكون أو الإسبات."
 
+msgid "Files"
+msgstr "الملفات"
+
+msgid "People"
+msgstr "الأجهزة المتصلة"
+
+msgid "Trackers"
+msgstr "المتتبعات"
+
+msgid "Add tracker"
+msgstr "إضافة متتبع"
+
+msgid "First and last pieces first"
+msgstr "الجزء الأول والأخير أولًا"
+
+msgid "Check the files again"
+msgstr "إعادة فحص الملفات"
+
+msgid "Copy magnet link"
+msgstr "نسخ رابط magnet"
+
 msgid "<< Hide details"
 msgstr "<< إخفاء التفاصيل"
 
 msgid "Show details >>"
 msgstr "إظهار التفاصيل >>"
+
+msgid "Next to the clock"
+msgstr "بجوار الساعة"
 
 msgid "Pause"
 msgstr "إيقاف مؤقت"
@@ -613,8 +661,8 @@ msgstr "رقم"
 msgid "Info"
 msgstr "معلومات"
 
-msgid "Hide next to the clock"
-msgstr "إخفاء بجوار الساعة"
+msgid "Drag me"
+msgstr "اسحبني"
 
 msgid "Download complete"
 msgstr "اكتمل التحميل"
@@ -733,6 +781,12 @@ msgstr "إذا كان مكتملاً اعرضه، وإن لم يكن استأن�
 msgid "Remember my choice (Options > Downloads)"
 msgstr "تذكّر اختياري (الخيارات > التحميلات)"
 
+msgid "Delete the downloaded files from the disk too (be careful)"
+msgstr "حذف الملفات المحمَّلة من القرص أيضًا (انتبه)"
+
+msgid "Don't show this question again"
+msgstr "عدم إظهار هذا السؤال مرة أخرى"
+
 msgid "All downloads are finished."
 msgstr "انتهت كل التحميلات."
 
@@ -783,6 +837,9 @@ msgstr "السبت"
 
 msgid "Sun"
 msgstr "الأحد"
+
+msgid "Wake the computer from sleep to start it"
+msgstr "إيقاظ الكمبيوتر من السكون لبدئها"
 
 msgid "Start the queue when Moo Downloader starts"
 msgstr "بدء القائمة عند تشغيل Moo Downloader"
@@ -840,6 +897,9 @@ msgstr "https://example.com/gallery/"
 
 msgid "Start exploring"
 msgstr "بدء الاستكشاف"
+
+msgid "Some pages make their links only in the browser (with scripts, or as plain text). For them: open the page in the browser, right-click it and choose \"Download all links with Moo Downloader\": every link you see there is collected."
+msgstr "بعض الصفحات تصنع روابطها داخل المتصفح فقط (بالسكربتات، أو كنص عادي). لهذه الصفحات: افتح الصفحة في المتصفح، واضغط عليها بزر الفأرة الأيمن واختر \"Download all links with Moo Downloader\": كل رابط تراه هناك يُجمع."
 
 msgid "Get"
 msgstr "جلب"
@@ -1033,6 +1093,9 @@ msgstr "مراقبة الحافظة لروابط التحميل"
 msgid "Automatically start downloading links placed in the clipboard"
 msgstr "بدء تحميل الروابط المنسوخة للحافظة تلقائياً"
 
+msgid "Draw the windows with the graphics card (uses more memory; after a restart)"
+msgstr "رسم النوافذ بكارت الشاشة (يستهلك ذاكرة أكثر؛ بعد إعادة التشغيل)"
+
 msgid "Show \"Tip of the day\" at startup"
 msgstr "إظهار \"نصيحة اليوم\" عند البدء"
 
@@ -1125,6 +1188,18 @@ msgstr "إظهار نافذة \"معلومات ملف التحميل\" للتح�
 
 msgid "Start downloading immediately while showing \"Download File Info\""
 msgstr "بدء التحميل فوراً أثناء عرض \"معلومات ملف التحميل\""
+
+msgid "For a playlist or several files added together: one window for each file (not one at the end)"
+msgstr "لقائمة تشغيل أو عدة ملفات مضافة معًا: نافذة لكل ملف (بدل نافذة واحدة في النهاية)"
+
+msgid "Ask before removing downloads from the list"
+msgstr "السؤال قبل إزالة التحميلات من القائمة"
+
+msgid "Quality of MP3 files"
+msgstr "جودة ملفات MP3"
+
+msgid "Download the subtitles of videos too, in these languages:"
+msgstr "تحميل ترجمة الفيديوهات أيضًا، بهذه اللغات:"
 
 msgid "Show the download progress window"
 msgstr "إظهار نافذة تقدّم التحميل"
@@ -1282,14 +1357,29 @@ msgstr "تشغيل محدد السرعة"
 msgid "Always turn on the speed limiter when Moo Downloader starts"
 msgstr "تشغيل محدد السرعة دائماً عند بدء Moo Downloader"
 
+msgid "Limit only while I use the computer (full speed after a minute without the mouse or keyboard)"
+msgstr "حدّد السرعة فقط أثناء استخدامي للكمبيوتر (سرعة كاملة بعد دقيقة دون الفأرة أو لوحة المفاتيح)"
+
 msgid "Every download can also have its own limit: its progress window > Speed Limiter tab."
 msgstr "يمكن أن يكون لكل تحميل حد خاص: نافذة تقدّمه > تبويب محدد السرعة."
+
+msgid "Make Moo Downloader the main program for torrents"
+msgstr "جعل Moo Downloader البرنامج الرئيسي للتورنت"
+
+msgid "On: magnet links and .torrent files open in Moo Downloader, from the browser and from Windows. Off: they stay with the browser and your own torrent program."
+msgstr "تشغيل: روابط magnet وملفات ‎.torrent تُفتح في Moo Downloader، من المتصفح ومن Windows. إيقاف: تبقى مع المتصفح وبرنامج التورنت الخاص بك."
 
 msgid "Keep sharing a finished torrent for (minutes)"
 msgstr "استمرار مشاركة التورنت بعد اكتماله لمدة (دقائق)"
 
 msgid "0 = stop as soon as all files are here. Sharing longer helps the others who download the same torrent."
 msgstr "0 = التوقف بمجرد وصول كل الملفات. المشاركة لمدة أطول تساعد الآخرين الذين يحمّلون نفس التورنت."
+
+msgid "Stop sharing once it sent (times what it received)"
+msgstr "أوقف المشاركة بعد أن يرسل (أضعاف ما استلمه)"
+
+msgid "No limit"
+msgstr "بلا حد"
 
 msgid "Maximum upload speed (KB/s, 0 = no limit)"
 msgstr "أقصى سرعة رفع (كيلوبايت/ث، 0 = بدون حد)"
@@ -1378,6 +1468,9 @@ msgstr "ملفات في نفس الوقت"
 msgid "Number the files"
 msgstr "ترقيم الملفات"
 
+msgid "Subtitles too"
+msgstr "والترجمة أيضًا"
+
 msgid "Not installed on this computer"
 msgstr "غير مثبّت على هذا الكمبيوتر"
 
@@ -1390,6 +1483,12 @@ msgstr "اضغط على متصفحك:"
 msgid "Almost done:"
 msgstr "خطوة أخيرة:"
 
+msgid "Test the link"
+msgstr "اختبار الربط"
+
+msgid "Repair the add-in"
+msgstr "إصلاح الإضافة"
+
 msgid "Copy folder path"
 msgstr "نسخ مسار المجلد"
 
@@ -1399,17 +1498,95 @@ msgstr "الإصدار {}"
 msgid "Coded by Ahmed Ezzat"
 msgstr "Coded by Ahmed Ezzat"
 
+msgid "Official download page (GitHub)"
+msgstr "صفحة التحميل الرسمية (GitHub)"
+
+msgid "Download Moo Downloader only from its official page."
+msgstr "حمّل Moo Downloader من صفحته الرسمية فقط."
+
+msgid "© Ezoo Tech – All rights reserved"
+msgstr "© Ezoo Tech – كل الحقوق محفوظة"
+
 msgid "Like Moo Downloader? You can support its development:"
 msgstr "أعجبك Moo Downloader؟ يمكنك دعم تطويره:"
 
 msgid "Support with PayPal"
 msgstr "ادعم عبر PayPal"
 
+msgid "Support with InstaPay"
+msgstr "ادعم عبر InstaPay"
+
+msgid "InstaPay: a7medek@instapay (scan the code with your bank's app)"
+msgstr "امسح الكود بتطبيق البنك أو InstaPay — a7medek@instapay"
+
+msgid "Download a part of a video"
+msgstr "تحميل جزء من فيديو"
+
+msgid "Paste the address of the video (its page, or a link to the video or stream):"
+msgstr "الصق عنوان الفيديو (صفحته، أو رابط الفيديو أو البث):"
+
+msgid "Looking…"
+msgstr "جارٍ البحث…"
+
+msgid "Get the video"
+msgstr "جلب الفيديو"
+
+msgid "Quality:"
+msgstr "الجودة:"
+
+msgid "From:"
+msgstr "من:"
+
+msgid "To:"
+msgstr "إلى:"
+
+msgid "Length:"
+msgstr "المدة:"
+
+msgid "Cut:"
+msgstr "القص:"
+
+msgid "Quick cut (recommended)"
+msgstr "قص سريع (مستحسن)"
+
+msgid "Exact cut"
+msgstr "قص دقيق"
+
+msgid "Quick cut"
+msgstr "قص سريع"
+
+msgid "Takes seconds and keeps the quality exactly as it is (nothing is made again). A video can only start on a whole picture, so the part may start a second or two before the time you chose."
+msgstr "يستغرق ثوانيَ ويحافظ على الجودة كما هي تمامًا (لا يُعاد إنشاء أي شيء). لا يمكن للفيديو أن يبدأ إلا عند صورة كاملة، لذلك قد يبدأ الجزء قبل الوقت الذي اخترته بثانية أو ثانيتين."
+
+msgid "Starts and ends on the very second you chose. The picture of the part is made again, so it takes longer (about as long as the part plays, or less) and works the processor. Sound alone is always cut exactly."
+msgstr "يبدأ وينتهي في الثانية التي اخترتها بالضبط. تُعاد صناعة صورة الجزء، لذلك يستغرق وقتًا أطول (قرابة مدة الجزء أو أقل) ويُشغّل المعالج. الصوت وحده يُقص دائمًا بدقة."
+
+msgid "Preparing the preview…"
+msgstr "جارٍ تجهيز المعاينة…"
+
+msgid "Preview the part"
+msgstr "معاينة الجزء"
+
+msgid "Download the part"
+msgstr "تحميل الجزء"
+
+msgid "Support Moo Downloader"
+msgstr "ادعم Moo Downloader"
+
+msgid "Did Moo Downloader save you time?"
+msgstr "هل وفّر لك Moo Downloader وقتك؟"
+
+msgid "It is free and has no ads. If you like, you can support its development with any amount."
+msgstr "البرنامج مجاني وبدون إعلانات. إن أحببت، يمكنك دعم تطويره بأي مبلغ."
+
+msgid "Not now"
+msgstr "ليس الآن"
+
 msgid "What's new in Moo Downloader"
 msgstr "الجديد في Moo Downloader"
 
-msgid "Moo Downloader is free and has no ads. If it helps you and you would like to support its development, you can send a gift with PayPal. Thank you!"
-msgstr "برنامج Moo Downloader مجاني تمامًا وبدون إعلانات. لو البرنامج بيفيدك وحابب تدعم تطويره، تقدر تبعت دعمك عن طريق PayPal. شكرًا لك!"
+msgid "Moo Downloader is free and has no ads. If it helps you and you would like to support its development, you can send a gift with PayPal or InstaPay. Thank you!"
+msgstr "برنامج Moo Downloader مجاني تمامًا وبدون إعلانات. لو البرنامج بيفيدك وحابب تدعم تطويره، تقدر تبعت دعمك عن طريق PayPal أو InstaPay. شكرًا لك!"
 
 msgid "Hide"
 msgstr "إخفاء"

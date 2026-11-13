@@ -250,6 +250,23 @@ pub const MP3_KEY: &str = "audio|MP3";
 /// bitrate of the MP3 files we make
 pub const MP3_KBPS: u64 = 192;
 
+/// The MP3 quality chosen in Options (kbps): 128, 192, 256 or 320.
+static MP3_RATE: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(MP3_KBPS);
+
+pub fn set_mp3_kbps(kbps: u32) {
+    let k = match kbps {
+        0..=159 => 128,
+        160..=223 => 192,
+        224..=287 => 256,
+        _ => 320,
+    };
+    MP3_RATE.store(k, std::sync::atomic::Ordering::Relaxed);
+}
+
+pub fn mp3_kbps() -> u64 {
+    MP3_RATE.load(std::sync::atomic::Ordering::Relaxed)
+}
+
 /// Plain words for a resolution, so the choice is easy to understand.
 pub fn quality_tag(height: u64) -> &'static str {
     match height {
@@ -270,15 +287,28 @@ fn with_tag(q: &str, height: u64) -> String {
     }
 }
 
+/// A post's title without the counts the site puts before it
+/// ("995K views · 9.9K reactions | The real title" -> "The real title").
+fn post_title(title: &str) -> String {
+    let t = title.trim();
+    if let Some((head, rest)) = t.split_once(" | ") {
+        let counts = head.split('·').all(|part| {
+            let p = part.trim();
+            let starts_with_number = p.chars().next().is_some_and(|c| c.is_ascii_digit() || ('٠'..='٩').contains(&c));
+            starts_with_number && p.split_whitespace().count() <= 3
+        });
+        if counts && !rest.trim().is_empty() {
+            return rest.trim().to_string();
+        }
+    }
+    t.to_string()
+}
+
 /// Turn yt-dlp's JSON into download choices: every resolution paired with the
 /// best matching sound, plus "audio only".
 pub fn build_options(full: &Value) -> YtInfo {
     let info = main_entry(full);
-    let title = info["title"]
-        .as_str()
-        .or_else(|| full["title"].as_str())
-        .unwrap_or("video")
-        .to_string();
+    let title = post_title(info["title"].as_str().or_else(|| full["title"].as_str()).unwrap_or("video"));
     let site = info["extractor_key"]
         .as_str()
         .or_else(|| full["extractor_key"].as_str())
@@ -346,7 +376,10 @@ pub fn build_options(full: &Value) -> YtInfo {
         if v.hls {
             continue; // video-only stream: we can't add sound to it
         }
-        let key = format!("{q}|{}", container.to_uppercase());
+        // AV1 is its own choice next to H.264: the same picture in a much
+        // smaller file (newer players and computers)
+        let av1 = v.codec_name() == "AV1" && container == "mp4";
+        let key = format!("{q}|{}{}", container.to_uppercase(), if av1 { " AV1" } else { "" });
         if !seen.insert(key.clone()) {
             continue; // already have this resolution in this container (better codec)
         }
@@ -399,10 +432,11 @@ pub fn build_options(full: &Value) -> YtInfo {
         if ext != "mp3" {
             // the same sound, turned into an MP3 file after the download
             // (plays on every phone, car radio and old player)
-            let mp3_size = if duration > 0 { duration * MP3_KBPS * 1000 / 8 } else { 0 };
+            let rate = mp3_kbps();
+            let mp3_size = if duration > 0 { duration * rate * 1000 / 8 } else { 0 };
             options.push(YtOption {
                 key: MP3_KEY.into(),
-                label: format!("Audio · MP3 {MP3_KBPS}k"),
+                label: format!("Audio · MP3 {rate}k"),
                 sub: fmt_size(mp3_size),
                 quality: "mp3".into(),
                 video_url: a.url.clone(),
@@ -413,7 +447,7 @@ pub fn build_options(full: &Value) -> YtInfo {
                 tag: String::new(),
                 codec: String::new(),
                 duration,
-                kbps: MP3_KBPS,
+                kbps: rate,
             });
         }
     }
@@ -463,8 +497,8 @@ pub fn netscape_cookies(cookies: &[BrowserCookie]) -> String {
 /// The arguments for looking at one page. `--ignore-config`: settings files
 /// of yt-dlp on the computer (which could add `--exec` and the like) are not
 /// read; `--`: the address can never be taken for an option.
-fn resolve_args(page_url: &str, cookie_file: Option<&Path>) -> Vec<std::ffi::OsString> {
-    let mut a: Vec<std::ffi::OsString> = ["--ignore-config", "-J", "--no-playlist", "--no-warnings", "--no-progress", "--socket-timeout", "20"]
+fn resolve_args(page_url: &str, cookie_file: Option<&Path>, referer: Option<&str>) -> Vec<std::ffi::OsString> {
+    let mut a: Vec<std::ffi::OsString> = ["--ignore-config", "-J", "--no-playlist", "--no-warnings", "--no-progress", "--no-cache-dir", "--socket-timeout", "20"]
         .iter()
         .map(Into::into)
         .collect();
@@ -472,16 +506,26 @@ fn resolve_args(page_url: &str, cookie_file: Option<&Path>) -> Vec<std::ffi::OsS
         a.push("--cookies".into());
         a.push(c.into());
     }
+    // the page a stream was found on (many video servers want it)
+    if let Some(r) = referer.filter(|r| r.starts_with("https://") || r.starts_with("http://")) {
+        a.push("--referer".into());
+        a.push(r.into());
+    }
     a.push("--".into());
     a.push(page_url.into());
     a
 }
 
-fn playlist_args(url: &str, cookie_file: Option<&Path>) -> Vec<std::ffi::OsString> {
-    let mut a: Vec<std::ffi::OsString> = ["--ignore-config", "-J", "--flat-playlist", "--yes-playlist", "--no-warnings", "--socket-timeout", "20"]
+fn playlist_args(url: &str, cookie_file: Option<&Path>, lang: &str) -> Vec<std::ffi::OsString> {
+    let mut a: Vec<std::ffi::OsString> = ["--ignore-config", "-J", "--flat-playlist", "--yes-playlist", "--no-warnings", "--no-cache-dir", "--socket-timeout", "20"]
         .iter()
         .map(Into::into)
         .collect();
+    // the names in the user's language, when the site has them in it
+    if !lang.is_empty() && lang.len() <= 5 && lang.chars().all(|c| c.is_ascii_alphanumeric() || c == '-') {
+        a.push("--extractor-args".into());
+        a.push(format!("youtube:lang={lang}").into());
+    }
     if let Some(c) = cookie_file {
         a.push("--cookies".into());
         a.push(c.into());
@@ -498,7 +542,8 @@ fn cookie_file(cookies: &[BrowserCookie]) -> anyhow::Result<std::path::PathBuf> 
     let nanos = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).map(|d| d.as_nanos()).unwrap_or(0);
     for _ in 0..5 {
         let n = N.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        let path = std::env::temp_dir().join(format!("ezoo-cookies-{}-{nanos:x}-{n}.txt", std::process::id()));
+        let base = crate::tools::work_dir().unwrap_or_else(std::env::temp_dir);
+        let path = base.join(format!("ezoo-cookies-{}-{nanos:x}-{n}.txt", std::process::id()));
         match std::fs::OpenOptions::new().write(true).create_new(true).open(&path) {
             Ok(mut f) => {
                 f.write_all(netscape_cookies(cookies).as_bytes())?;
@@ -511,10 +556,22 @@ fn cookie_file(cookies: &[BrowserCookie]) -> anyhow::Result<std::path::PathBuf> 
     bail!("could not make a cookie file")
 }
 
-fn run_ytdlp(tool: &Path, page_url: &str, cookie_file: Option<&Path>) -> anyhow::Result<Value> {
+/// yt-dlp, started so that its own temporary files go to our folder: on
+/// some computers the Windows temporary folder is on a drive Windows does
+/// not let programs walk through ("WinError 448 ... untrusted mount point").
+fn ytdlp_command(tool: &Path) -> Command {
     let mut cmd = Command::new(tool);
-    cmd.args(resolve_args(page_url, cookie_file));
+    if let Some(dir) = crate::tools::work_dir() {
+        cmd.env("TEMP", &dir).env("TMP", &dir).current_dir(&dir);
+    }
+    crate::http::with_proxy(&mut cmd);
     hide_window(&mut cmd);
+    cmd
+}
+
+fn run_ytdlp(tool: &Path, page_url: &str, cookie_file: Option<&Path>, referer: Option<&str>) -> anyhow::Result<Value> {
+    let mut cmd = ytdlp_command(tool);
+    cmd.args(resolve_args(page_url, cookie_file, referer));
     let out = cmd.output().context("could not start yt-dlp")?;
     if !out.status.success() {
         let err = String::from_utf8_lossy(&out.stderr);
@@ -538,6 +595,11 @@ fn needs_login(msg: &str) -> bool {
     ["sign in", "log in", "login", "cookies", "age", "bot", "private", "registered users", "rate-limit", "empty media"]
         .iter()
         .any(|k| m.contains(k))
+}
+
+/// Sites where much is seen only by friends / group members.
+fn members_site(url: &str) -> bool {
+    matches!(site_of(url).as_str(), "facebook.com" | "fb.watch" | "instagram.com" | "threads.net" | "x.com" | "twitter.com")
 }
 
 /// The site part of an address that cookies belong to ("www.youtube.com",
@@ -605,7 +667,10 @@ fn with_cookies<T>(
     }
     match run(None) {
         Ok(v) => Ok(v),
-        Err(e) if needs_login(&e.to_string()) => {
+        // social sites hide what only friends / members see behind messages
+        // that say nothing of a login ("Cannot parse data", "No video
+        // formats found"): with the browser's cookies there, always
+        Err(e) if needs_login(&e.to_string()) || (members_site(page_url) && cookies.is_some_and(|c| !c.is_empty())) => {
             let list = cookies.map(<[BrowserCookie]>::to_vec).or_else(|| remembered_cookies(page_url));
             let Some(list) = list.filter(|c| !c.is_empty()) else {
                 return Err(if login_wall(&e.to_string()) { e.context(LOGIN_NEEDED) } else { e });
@@ -619,29 +684,167 @@ fn with_cookies<T>(
     }
 }
 
+/// The subtitles of a video page (when the site has them), saved next to
+/// the video as "<name>.<language>.<ext>". `langs`: "ar en" (yt-dlp's own
+/// automatic translations are used when there are no real ones). Blocking.
+pub fn fetch_subtitles(page_url: &str, dir: &Path, stem: &str, langs: &str) -> anyhow::Result<()> {
+    let tool = find_tool("yt-dlp").ok_or_else(|| anyhow!("yt-dlp.exe is missing"))?;
+    let langs: Vec<String> = langs
+        .split(|c: char| c == ',' || c.is_whitespace())
+        .map(|l| l.trim().to_ascii_lowercase())
+        .filter(|l| !l.is_empty() && l.len() <= 12 && l.chars().all(|c| c.is_ascii_alphanumeric() || c == '-'))
+        .collect();
+    if langs.is_empty() {
+        return Ok(());
+    }
+    // "ar" also takes "ar-EG" and the like
+    let wanted = langs.iter().map(|l| format!("{l}.*")).chain(langs.iter().cloned()).collect::<Vec<_>>().join(",");
+    // a name of ours as the output template: "%" means something to yt-dlp
+    let out = format!("{}.%(ext)s", stem.replace('%', "%%"));
+    with_cookies(page_url, None, |file| {
+        let mut cmd = ytdlp_command(&tool);
+        cmd.args(["--ignore-config", "--skip-download", "--write-subs", "--write-auto-subs", "--no-playlist", "--no-warnings", "--no-cache-dir"])
+            .args(["--socket-timeout", "20", "--sub-format", "srt/vtt/best", "--sub-langs"])
+            .arg(&wanted)
+            .arg("-P")
+            .arg(dir)
+            .arg("-o")
+            .arg(&out);
+        if let Some(c) = file {
+            cmd.arg("--cookies").arg(c);
+        }
+        cmd.arg("--").arg(page_url);
+        let o = cmd.output().context("could not start yt-dlp")?;
+        if o.status.success() {
+            Ok(())
+        } else {
+            let err = String::from_utf8_lossy(&o.stderr);
+            bail!("{}", err.lines().rev().find(|l| !l.trim().is_empty()).unwrap_or("no subtitles"))
+        }
+    })
+}
+
 /// Find the download choices of a page with a video. Blocking (takes a few
 /// seconds). Tries without cookies first, and with the browser's cookies for
 /// that site only when the site asks for a login (Instagram, Facebook,
 /// age-limited YouTube videos, ...). Cookies the browser gave earlier for
 /// the same site are used when none come with this call.
 pub fn resolve(page_url: &str, cookies: Option<&[BrowserCookie]>) -> anyhow::Result<YtInfo> {
+    resolve_for(page_url, cookies, None)
+}
+
+/// The same, for a stream found on a page (`referer`: that page).
+pub fn resolve_for(page_url: &str, cookies: Option<&[BrowserCookie]>, referer: Option<&str>) -> anyhow::Result<YtInfo> {
+    // the same page again within a few minutes (the add-in asks again when
+    // the tab comes back, a playlist video is picked): no new yt-dlp run,
+    // which takes seconds and much memory
+    if let Some(info) = cached(page_url) {
+        return Ok(info);
+    }
+    let info = resolve_now(page_url, cookies, referer)?;
+    remember(page_url, &info);
+    Ok(info)
+}
+
+/// Results of the last minutes (the links in them stay good for hours).
+static RESULTS: std::sync::Mutex<Vec<(String, std::time::Instant, YtInfo)>> = std::sync::Mutex::new(Vec::new());
+const KEEP_RESULTS: Duration = Duration::from_secs(10 * 60);
+
+fn cached(page_url: &str) -> Option<YtInfo> {
+    let mut list = RESULTS.lock().unwrap_or_else(|p| p.into_inner());
+    list.retain(|(_, at, _)| at.elapsed() < KEEP_RESULTS);
+    list.iter().find(|(u, _, _)| u == page_url).map(|(_, _, i)| i.clone())
+}
+
+fn remember(page_url: &str, info: &YtInfo) {
+    let mut list = RESULTS.lock().unwrap_or_else(|p| p.into_inner());
+    list.retain(|(u, _, _)| u != page_url);
+    list.push((page_url.to_string(), std::time::Instant::now(), info.clone()));
+    if list.len() > 30 {
+        list.remove(0);
+    }
+}
+
+/// Forget a page's result: its links stopped working (fresh ones wanted).
+pub fn forget(page_url: &str) {
+    RESULTS.lock().unwrap_or_else(|p| p.into_inner()).retain(|(u, _, _)| u != page_url);
+}
+
+fn resolve_now(page_url: &str, cookies: Option<&[BrowserCookie]>, referer: Option<&str>) -> anyhow::Result<YtInfo> {
+    // a file on Google Drive: its own file, whole, as it was put there (the
+    // player's qualities are made smaller by Google, and yt-dlp often can't
+    // see a file shared with the user)
+    let drive = drive_file_id(page_url);
     let tool = find_tool("yt-dlp")
-        .ok_or_else(|| anyhow!("yt-dlp.exe is missing. Moo Downloader gets it by itself in a minute (internet needed), then try again"))?;
+        .ok_or_else(|| anyhow!("yt-dlp.exe is missing. Moo Downloader gets it by itself in a minute (internet needed), then try again"));
     let cookies = cookies.filter(|c| !c.is_empty());
-    let json = with_cookies(page_url, cookies, |file| run_ytdlp(&tool, page_url, file))?;
-    let info = build_options(&json);
+    let found = tool.and_then(|tool| with_cookies(page_url, cookies, |file| run_ytdlp(&tool, page_url, file, referer)));
+    let mut info = match (found, &drive) {
+        (Ok(json), _) => build_options(&json),
+        (Err(_), Some(_)) => YtInfo { title: String::new(), site: "Google Drive".into(), options: Vec::new() },
+        (Err(e), None) => return Err(e),
+    };
+    if let Some(id) = drive {
+        info.site = "Google Drive".into();
+        info.options.insert(0, drive_original(&id, &info));
+    }
     if info.options.is_empty() {
         bail!("no downloadable video was found on this page");
     }
     Ok(info)
 }
 
+/// The id of a Google Drive file from its page ("/file/d/ID/view",
+/// "open?id=ID", "uc?id=ID").
+pub fn drive_file_id(url: &str) -> Option<String> {
+    let u = url::Url::parse(url).ok()?;
+    let host = u.host_str()?.to_ascii_lowercase();
+    if !(host == "drive.google.com" || host == "docs.google.com" || host == "drive.usercontent.google.com") {
+        return None;
+    }
+    let mut parts = u.path_segments()?;
+    let id = loop {
+        match parts.next() {
+            Some("d") => break parts.next().map(str::to_string),
+            Some(_) => continue,
+            None => break u.query_pairs().find(|(k, _)| k == "id").map(|(_, v)| v.to_string()),
+        }
+    }?;
+    (id.len() >= 10 && id.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')).then_some(id)
+}
+
+/// "Original file": the file itself, as the Download button of Drive gives it.
+fn drive_original(id: &str, info: &YtInfo) -> YtOption {
+    let ext = info.options.first().map(|o| o.ext.clone()).unwrap_or_default();
+    YtOption {
+        key: "drive-original".into(),
+        label: "Original file".into(),
+        sub: "Google Drive".into(),
+        quality: "Original".into(),
+        // confirm=t: no "can't scan this file for viruses" page for big files
+        video_url: format!("https://drive.usercontent.google.com/download?id={id}&export=download&confirm=t"),
+        audio_url: None,
+        ext,
+        size: 0,
+        headers: vec![("Referer".into(), "https://drive.google.com/".into())],
+        tag: String::new(),
+        codec: String::new(),
+        duration: info.options.first().map(|o| o.duration).unwrap_or(0),
+        kbps: 0,
+    }
+}
+
 /// Fresh links for a choice made earlier (links expire after a few hours).
 pub fn resolve_key(page_url: &str, key: &str) -> anyhow::Result<YtOption> {
-    resolve(page_url, None)?
-        .options
-        .into_iter()
+    forget(page_url);
+    let options = resolve(page_url, None)?.options;
+    // a choice saved by an older version: "2160p|MP4" may now be "2160p|MP4 AV1"
+    let alt = key.strip_suffix(" AV1").map(String::from).unwrap_or_else(|| format!("{key} AV1"));
+    options
+        .iter()
         .find(|o| o.key == key)
+        .or_else(|| options.iter().find(|o| o.key == alt))
+        .cloned()
         .ok_or_else(|| anyhow!("this quality is not offered any more"))
 }
 
@@ -658,16 +861,86 @@ pub struct PlaylistEntry {
 pub struct PlaylistInfo {
     pub title: String,
     pub entries: Vec<PlaylistEntry>,
+    /// lists inside it (a channel's tabs): their addresses
+    pub tabs: Vec<String>,
 }
 
 /// The videos of a playlist (or channel page), without looking at each
-/// video yet (`--flat-playlist`, fast). Blocking.
-pub fn playlist(url: &str) -> anyhow::Result<PlaylistInfo> {
+/// video yet (`--flat-playlist`, fast). `lang`: the language wanted for the
+/// names ("ar"; "" = the site's choice). Blocking.
+pub fn playlist(url: &str, lang: &str) -> anyhow::Result<PlaylistInfo> {
+    let url = channel_videos(url);
+    let mut info = playlist_once(&url, lang)?;
+    // An Arabic (Russian…) list where only some videos have a name in the
+    // user's language comes mixed: then all in the list's own language
+    if let Some(own) = script_lang(&info.title).filter(|own| *own != lang) {
+        let theirs = info.entries.iter().filter(|e| script_lang(&e.title) == Some(own)).count();
+        if theirs > 0 && theirs < info.entries.len() {
+            if let Ok(again) = playlist_once(&url, own) {
+                let now = again.entries.iter().filter(|e| script_lang(&e.title) == Some(own)).count();
+                if now > theirs && again.entries.len() >= info.entries.len() {
+                    info = again;
+                }
+            }
+        }
+    }
+    // a channel page gives its tabs (Videos, Shorts, Live), not videos: the
+    // videos of the first tab
+    if info.entries.is_empty() {
+        if let Some(tab) = info.tabs.first() {
+            let mut inner = playlist_once(tab, lang)?;
+            if inner.title == "Playlist" {
+                inner.title = info.title;
+            }
+            return Ok(inner);
+        }
+    }
+    Ok(info)
+}
+
+/// The language a name is written in, told by its first letter, for the
+/// scripts that belong to one language ("ar" for Arabic letters…); None
+/// for Latin letters (many languages) and names without letters.
+fn script_lang(name: &str) -> Option<&'static str> {
+    for c in name.chars() {
+        let u = c as u32;
+        let lang = match u {
+            0x0600..=0x06FF | 0x0750..=0x077F | 0x08A0..=0x08FF | 0xFB50..=0xFDFF | 0xFE70..=0xFEFF => "ar",
+            0x0400..=0x04FF => "ru",
+            0x0590..=0x05FF => "iw",
+            0x0370..=0x03FF => "el",
+            0x0E00..=0x0E7F => "th",
+            0x3040..=0x30FF => "ja",
+            0xAC00..=0xD7AF => "ko",
+            _ if c.is_alphabetic() => return None,
+            _ => continue,
+        };
+        return Some(lang);
+    }
+    None
+}
+
+/// A YouTube channel's own address ("youtube.com/@name") lists its tabs:
+/// its videos are under "/videos".
+fn channel_videos(url: &str) -> String {
+    let trimmed = url.trim().trim_end_matches('/');
+    let Some(at) = trimmed.find("youtube.com/@") else { return url.trim().to_string() };
+    let rest = &trimmed[at + "youtube.com/@".len()..];
+    if rest.is_empty() || rest.contains('?') || rest.contains('#') {
+        return url.trim().to_string();
+    }
+    match rest.split_once('/') {
+        None => format!("{trimmed}/videos"),
+        Some((_, "featured")) => format!("{}/videos", trimmed.trim_end_matches("/featured")),
+        Some(_) => url.trim().to_string(),
+    }
+}
+
+fn playlist_once(url: &str, lang: &str) -> anyhow::Result<PlaylistInfo> {
     let tool = find_tool("yt-dlp").ok_or_else(|| anyhow!("yt-dlp.exe was not found next to MooDownloader.exe"))?;
     let json = with_cookies(url, None, |file| {
-        let mut cmd = Command::new(&tool);
-        cmd.args(playlist_args(url, file));
-        hide_window(&mut cmd);
+        let mut cmd = ytdlp_command(&tool);
+        cmd.args(playlist_args(url, file, lang));
         let out = cmd.output().context("could not start yt-dlp")?;
         if !out.status.success() {
             let err = String::from_utf8_lossy(&out.stderr);
@@ -693,7 +966,15 @@ pub fn parse_playlist(json: &Value) -> PlaylistInfo {
             });
         }
     }
+    let mut tabs = Vec::new();
     for e in list {
+        // a list inside the list (a channel's "Videos" tab): not a video
+        if e["_type"].as_str() == Some("playlist") || e["ie_key"].as_str() == Some("YoutubeTab") {
+            if let Some(u) = e["url"].as_str().filter(|u| u.starts_with("http")) {
+                tabs.push(u.to_string());
+            }
+            continue;
+        }
         let url = e["url"]
             .as_str()
             .filter(|u| u.starts_with("http"))
@@ -708,7 +989,7 @@ pub fn parse_playlist(json: &Value) -> PlaylistInfo {
         }
         entries.push(PlaylistEntry { title: t.to_string(), url, duration: as_u64(&e["duration"]).unwrap_or(0) });
     }
-    PlaylistInfo { title, entries }
+    PlaylistInfo { title, entries, tabs }
 }
 
 /// Height of a choice ("1080p60" -> 1080; audio / unknown -> 0).
@@ -744,9 +1025,8 @@ pub fn pick_option(options: &[YtOption], wanted: &str) -> Option<YtOption> {
 /// Update yt-dlp right now ("Help > Update video downloader"). Blocking.
 pub fn update_now() -> anyhow::Result<String> {
     let tool = find_tool("yt-dlp").ok_or_else(|| anyhow!("yt-dlp.exe was not found next to MooDownloader.exe"))?;
-    let mut cmd = Command::new(&tool);
+    let mut cmd = ytdlp_command(&tool);
     cmd.args(["--ignore-config", "-U"]);
-    hide_window(&mut cmd);
     let out = cmd.output().context("could not start yt-dlp")?;
     let text = format!("{}\n{}", String::from_utf8_lossy(&out.stdout), String::from_utf8_lossy(&out.stderr));
     let last = text.lines().rev().find(|l| !l.trim().is_empty()).unwrap_or("done").trim().to_string();
@@ -754,32 +1034,6 @@ pub fn update_now() -> anyhow::Result<String> {
         Ok(last)
     } else {
         bail!("{last}")
-    }
-}
-
-/// yt-dlp needs updates when sites change things. Runs `yt-dlp -U` at most
-/// once a day, for the copy next to the app. Blocking; call it from a
-/// background thread.
-pub fn update_if_due(data_dir: &Path) {
-    let stamp = data_dir.join("yt-dlp-updated");
-    let due = std::fs::metadata(&stamp)
-        .and_then(|m| m.modified())
-        .ok()
-        .and_then(|t| SystemTime::now().duration_since(t).ok())
-        .map(|age| age > Duration::from_secs(24 * 3600))
-        .unwrap_or(true);
-    if !due {
-        return;
-    }
-    let Some(tool) = find_tool("yt-dlp") else { return };
-    if !tool.is_absolute() {
-        return; // installed elsewhere (e.g. winget): leave updates to that
-    }
-    let mut cmd = Command::new(&tool);
-    cmd.args(["--ignore-config", "-U"]);
-    hide_window(&mut cmd);
-    if cmd.output().map(|o| o.status.success()).unwrap_or(false) {
-        let _ = std::fs::write(&stamp, b"ok");
     }
 }
 
@@ -834,20 +1088,27 @@ mod tests {
         assert_eq!(info.title, "Cool video");
         assert_eq!(info.site, "Youtube");
         let keys: Vec<&str> = info.options.iter().map(|o| o.key.as_str()).collect();
-        assert_eq!(keys, ["1080p60|WEBM", "1080p|MP4", "1080p|WEBM", "720p|MP4", "360p|MP4+A", "audio|M4A", "audio|MP3"]);
+        assert_eq!(keys, ["1080p60|WEBM", "1080p|MP4", "1080p|WEBM", "1080p|MP4 AV1", "720p|MP4", "360p|MP4+A", "audio|M4A", "audio|MP3"]);
         let mp4 = &info.options[1];
         assert_eq!(mp4.video_url, "https://gv/137");
         assert_eq!(mp4.audio_url.as_deref(), Some("https://gv/140"));
         assert_eq!(mp4.size, 94000);
         assert_eq!(info.options[0].audio_url.as_deref(), Some("https://gv/251"));
-        assert_eq!(info.options[5].label, "Audio only · M4A 130k");
-        assert_eq!(info.options[6].ext, "mp3");
-        assert_eq!(info.options[6].video_url, info.options[5].video_url);
+        // AV1: its own choice, smaller than the H.264 one
+        let av1 = &info.options[3];
+        assert_eq!(av1.codec, "AV1");
+        assert!(av1.label.ends_with("MP4 AV1"), "{}", av1.label);
+        assert!(av1.size < mp4.size);
+        assert_eq!(info.options[6].label, "Audio only · M4A 130k");
+        assert_eq!(info.options[7].ext, "mp3");
+        assert_eq!(info.options[7].video_url, info.options[6].video_url);
         // the resolution in plain words
         assert_eq!(mp4.label, "1080p Full HD · MP4");
         assert_eq!(mp4.tag, "Full HD");
-        assert_eq!(info.options[3].tag, "HD");
-        assert_eq!(info.options[4].tag, "SD");
+        assert_eq!(info.options[4].tag, "HD");
+        assert_eq!(info.options[5].tag, "SD");
+        // a playlist asking for 1080: the H.264 one (plays everywhere)
+        assert_eq!(pick_option(&info.options, "1080").unwrap().key, "1080p|MP4");
         assert_eq!(pick_option(&info.options, "mp3").unwrap().key, MP3_KEY);
         assert_eq!(pick_option(&info.options, "audio").unwrap().key, "audio|M4A");
     }
@@ -898,6 +1159,55 @@ mod tests {
     }
 
     #[test]
+    fn drive_files_are_known() {
+        assert_eq!(
+            drive_file_id("https://drive.google.com/file/d/1aLKUiTGVrngA6MeznJwaivpiMOkOAm8D/view?usp=drive_link").as_deref(),
+            Some("1aLKUiTGVrngA6MeznJwaivpiMOkOAm8D")
+        );
+        assert_eq!(drive_file_id("https://drive.google.com/open?id=1aLKUiTGVrngA6Mez").as_deref(), Some("1aLKUiTGVrngA6Mez"));
+        assert_eq!(drive_file_id("https://drive.google.com/drive/my-drive"), None);
+        assert_eq!(drive_file_id("https://example.com/file/d/1aLKUiTGVrngA6MeznJ/view"), None);
+        let o = drive_original("1aLKUiTGVrngA6Mez", &YtInfo { title: String::new(), site: String::new(), options: Vec::new() });
+        assert!(o.video_url.starts_with("https://drive.usercontent.google.com/download?id=1aLKUiTGVrngA6Mez"));
+    }
+
+    #[test]
+    fn post_titles_lose_their_counts() {
+        assert_eq!(super::post_title("995K views · 9.9K reactions | It is real"), "It is real");
+        assert_eq!(super::post_title("1.2M views | فيديو"), "فيديو");
+        assert_eq!(super::post_title("Song A | Live"), "Song A | Live");
+        assert_eq!(super::post_title("plain"), "plain");
+    }
+
+    #[test]
+    fn names_tell_their_language() {
+        assert_eq!(super::script_lang("القرآن كامل بصوت الشيخ"), Some("ar"));
+        assert_eq!(super::script_lang("07 - Привет"), Some("ru"));
+        assert_eq!(super::script_lang("Surah Al-Asr - سورة"), None);
+        assert_eq!(super::script_lang("123"), None);
+    }
+
+    #[test]
+    fn channel_pages_list_their_videos() {
+        assert_eq!(super::channel_videos("https://www.youtube.com/@name"), "https://www.youtube.com/@name/videos");
+        assert_eq!(super::channel_videos("https://www.youtube.com/@name/"), "https://www.youtube.com/@name/videos");
+        assert_eq!(super::channel_videos("https://www.youtube.com/@name/featured"), "https://www.youtube.com/@name/videos");
+        assert_eq!(super::channel_videos("https://www.youtube.com/@name/shorts"), "https://www.youtube.com/@name/shorts");
+        assert_eq!(super::channel_videos("https://www.youtube.com/playlist?list=PL1"), "https://www.youtube.com/playlist?list=PL1");
+        let tabs = serde_json::json!({"_type": "playlist", "title": "Name", "entries": [
+            {"_type": "url", "ie_key": "YoutubeTab", "url": "https://www.youtube.com/@name/videos", "title": "Name - Videos"},
+            {"_type": "url", "ie_key": "YoutubeTab", "url": "https://www.youtube.com/@name/shorts", "title": "Name - Shorts"}
+        ]});
+        let p = super::parse_playlist(&tabs);
+        assert!(p.entries.is_empty());
+        assert_eq!(p.tabs.len(), 2);
+        let a: Vec<String> = super::playlist_args("u", None, "ar").iter().map(|x| x.to_string_lossy().into_owned()).collect();
+        assert!(a.windows(2).any(|w| w[0] == "--extractor-args" && w[1] == "youtube:lang=ar"));
+        let b: Vec<String> = super::playlist_args("u", None, "a b").iter().map(|x| x.to_string_lossy().into_owned()).collect();
+        assert!(!b.contains(&"--extractor-args".to_string()));
+    }
+
+    #[test]
     fn playlists_and_quality_choice() {
         let j = json!({"_type": "playlist", "title": "Course", "entries": [
             {"id": "aaa", "title": "Lesson 1", "url": "https://www.youtube.com/watch?v=aaa", "duration": 61.0},
@@ -930,11 +1240,14 @@ mod tests {
 
     #[test]
     fn yt_dlp_settings_files_and_options_are_never_used() {
-        let a: Vec<String> = resolve_args("-x --exec calc", Some(Path::new("c.txt"))).iter().map(|x| x.to_string_lossy().into_owned()).collect();
+        let a: Vec<String> = resolve_args("-x --exec calc", Some(Path::new("c.txt")), Some("-o x")).iter().map(|x| x.to_string_lossy().into_owned()).collect();
         assert_eq!(a[0], "--ignore-config");
         // the address comes after "--": yt-dlp can't read it as an option
         assert_eq!(&a[a.len() - 2..], ["--", "-x --exec calc"]);
-        let p: Vec<String> = playlist_args("-o x", None).iter().map(|x| x.to_string_lossy().into_owned()).collect();
+        assert!(!a.iter().any(|x| x == "--referer"), "only a web address is a referer");
+        let r: Vec<String> = resolve_args("https://cdn/x.mpd", None, Some("https://site/page")).iter().map(|x| x.to_string_lossy().into_owned()).collect();
+        assert!(r.windows(2).any(|w| w[0] == "--referer" && w[1] == "https://site/page"));
+        let p: Vec<String> = playlist_args("-o x", None, "").iter().map(|x| x.to_string_lossy().into_owned()).collect();
         assert_eq!(p[0], "--ignore-config");
         assert_eq!(&p[p.len() - 2..], ["--", "-o x"]);
     }

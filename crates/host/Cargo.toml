@@ -1,0 +1,18 @@
+[package]
+name = "moo-host"
+version.workspace = true
+edition.workspace = true
+license-file = "../../LICENSE"
+description = "Moo Downloader – the helper the browser starts to talk to the program (no port in the browser)"
+
+[dependencies]
+serde_json.workspace = true
+ring = "0.17"
+
+[target.'cfg(windows)'.dependencies]
+# the program's key is kept encrypted for this Windows user (DPAPI)
+windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_Security_Cryptography"] }
+
+[[bin]]
+name = "moo-host"
+path = "src/main.rs"
