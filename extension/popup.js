@@ -32,6 +32,28 @@ async function init() {
     showOn(on.checked);
   });
 
+  const look = document.getElementById("look");
+  chrome.storage.local.get({ bubbleStyle: "compact" }, (o) => (look.value = o.bubbleStyle || "compact"));
+  look.addEventListener("change", () => chrome.storage.local.set({ bubbleStyle: look.value }));
+
+  // how solid the button is on the video (the mouse on it: always solid)
+  const solid = document.getElementById("solid");
+  const solidText = document.getElementById("solidText");
+  const showSolid = (v) => {
+    solid.value = String(v);
+    solidText.textContent = `${v}%`;
+  };
+  chrome.storage.local.get({ bubbleOpacity: 0.9 }, (o) => showSolid(Math.round((Number(o.bubbleOpacity) || 0.9) * 100)));
+  solid.addEventListener("input", () => {
+    showSolid(Number(solid.value));
+    chrome.storage.local.set({ bubbleOpacity: Number(solid.value) / 100 });
+  });
+
+  // full screen: the button stays out of the way unless the user wants it
+  const fullscreen = document.getElementById("fullscreen");
+  chrome.storage.local.get({ bubbleFullscreen: false }, (o) => (fullscreen.checked = !!o.bubbleFullscreen));
+  fullscreen.addEventListener("change", () => chrome.storage.local.set({ bubbleFullscreen: fullscreen.checked }));
+
   // size of the "Download this video" button on pages (also in the settings page)
   const scale = document.getElementById("scale");
   const scaleText = document.getElementById("scaleText");
@@ -50,13 +72,71 @@ async function init() {
   scale.addEventListener("input", () => save(Number(scale.value)));
   document.getElementById("scaleReset").addEventListener("click", () => save(100));
 
+  // why the last download stayed in the browser (the last ten minutes)
+  const WHY = {
+    "not-running": "Moo Downloader was not running or did not answer.",
+    small: "it is smaller than the size set in the add-in's settings.",
+    rules: "Moo Downloader's Options leave this kind of file, or this site, to the browser.",
+    "cant-fetch": "the site gives this file to the browser only (a sign-in of the page, or a link that works once).",
+    form: "it comes from a form that sends a file, which can't be sent again.",
+  };
+  chrome.storage.local.get({ lastLeft: null }, ({ lastLeft }) => {
+    const box = document.getElementById("left");
+    if (!lastLeft || !WHY[lastLeft.why] || Date.now() - lastLeft.at > 10 * 60 * 1000) return;
+    const name = lastLeft.name ? `"${lastLeft.name}"` : "The last download";
+    box.textContent = `${name} stayed in the browser: ${WHY[lastLeft.why]}`;
+    box.hidden = false;
+  });
+
+  // the button was turned off on this site (from its own help): back on
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    let site = "";
+    try {
+      site = new URL((tabs && tabs[0] && tabs[0].url) || "").hostname.toLowerCase();
+    } catch {
+      return;
+    }
+    chrome.storage.local.get({ noButtonSites: [] }, ({ noButtonSites }) => {
+      if (!site || !(noButtonSites || []).includes(site)) return;
+      const again = document.createElement("button");
+      again.className = "act";
+      again.textContent = `Show the video button on ${site} again`;
+      again.addEventListener("click", () => {
+        chrome.storage.local.set({ noButtonSites: noButtonSites.filter((h) => h !== site) }, () => {
+          again.textContent = "Done - reload the page";
+          again.disabled = true;
+        });
+      });
+      document.querySelector("section").appendChild(again);
+    });
+  });
+
   chrome.runtime.sendMessage({ type: "swiftget-status" }, (res) => {
     const el = document.getElementById("status");
     const ok = res && res.ok;
-    el.textContent = ok ? "connected" : "app not running";
+    const nokey = res && res.state === "nokey";
+    el.textContent = ok ? "connected" : nokey ? "not connected" : "app not running";
     el.classList.toggle("on", !!ok);
-    if (!ok) {
-      // the program registers "ezoo-download:" when it is installed
+    if (nokey) {
+      // the program runs but does not know this add-in (yet): connect again
+      const again = document.createElement("button");
+      again.className = "act";
+      again.textContent = "Connect again";
+      again.addEventListener("click", () => {
+        again.textContent = "Connecting… (answer in Moo Downloader if it asks)";
+        again.disabled = true;
+        chrome.runtime.sendMessage({ type: "swiftget-reconnect" }, (r) => {
+          again.disabled = false;
+          again.textContent = r && r.ok ? "Connected ✔" : "Not connected - try again";
+          if (r && r.ok) {
+            el.textContent = "connected";
+            el.classList.add("on");
+          }
+        });
+      });
+      document.querySelector("section").appendChild(again);
+    } else if (!ok) {
+      // the program registers "moo-downloader:" when it is installed
       const open = document.createElement("a");
       open.href = "moo-downloader://open";
       open.className = "open";
@@ -65,6 +145,25 @@ async function init() {
       document.querySelector("section").appendChild(open);
     }
   });
+
+  // Firefox: the add-in talks to the program through the program's helper
+  // only once the user allows it (once); until then it uses the port
+  if (/Firefox\//.test(navigator.userAgent) && chrome.permissions) {
+    chrome.permissions.contains({ permissions: ["nativeMessaging"] }).then((has) => {
+      if (has) return;
+      const direct = document.createElement("button");
+      direct.className = "act";
+      direct.textContent = "Connect directly (recommended)";
+      direct.title = "Firefox asks once: the add-in then talks to Moo Downloader without a port";
+      direct.addEventListener("click", () => {
+        chrome.permissions.request({ permissions: ["nativeMessaging"] }).then((yes) => {
+          direct.textContent = yes ? "Connected directly ✔" : "Not allowed";
+          direct.disabled = !!yes;
+        });
+      });
+      document.querySelector("section").appendChild(direct);
+    }, () => {});
+  }
 
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (!tab) return;
@@ -102,6 +201,34 @@ async function init() {
       btn.textContent = "Download";
       btn.disabled = !!m.disabled;
       btn.addEventListener("click", () => {
+        if (m.resolve) {
+          // a stream: its qualities come from the app, shown in its place
+          btn.textContent = "…";
+          btn.disabled = true;
+          chrome.runtime.sendMessage({ type: "swiftget-resolve-video", resolve: m.resolve }, (res) => {
+            if (!res || res.error || !res.items) {
+              btn.textContent = (res && res.error) || "App not running";
+              return;
+            }
+            const rows = res.items.map((it) => {
+              const r = document.createElement("div");
+              r.className = "media";
+              const inf = document.createElement("div");
+              inf.textContent = it.label;
+              const go = document.createElement("button");
+              go.textContent = "Download";
+              go.addEventListener("click", () =>
+                chrome.runtime.sendMessage({ type: "swiftget-download", item: it, title: tab.title, referrer: tab.url, fileName: `${title}.${it.ext || "mp4"}` }, (r2) => {
+                  go.textContent = r2 && r2.ok ? "Sent ✔" : "App not running";
+                })
+              );
+              r.append(inf, go);
+              return r;
+            });
+            row.replaceWith(...rows);
+          });
+          return;
+        }
         chrome.runtime.sendMessage(
           { type: "swiftget-download", item: m, title: tab.title, referrer: tab.url, fileName: `${title}.${m.ext || "mp4"}` },
           (res) => {
