@@ -757,7 +757,7 @@ fn run() -> anyhow::Result<()> {
             slint::CloseRequestResponse::HideWindow
         });
     }
-    // after an update: what is new, once, in the language of the program
+    // Remember the running version without opening a release-notes window.
     let mut just_updated = false;
     {
         let mut s = mgr.settings();
@@ -768,10 +768,6 @@ fn run() -> anyhow::Result<()> {
             s.last_version = now.into();
             let _ = mgr.set_settings(s);
             just_updated = updated;
-            if updated {
-                let ui = ui.clone();
-                Timer::single_shot(Duration::from_millis(1500), move || extra::whats_new(&ui));
-            }
         }
     }
     // the size the user gave the main window last time
@@ -803,7 +799,7 @@ fn run() -> anyhow::Result<()> {
             let ui = ui.clone();
             Timer::single_shot(Duration::from_millis(800), move || browser::open(&ui));
         } else if s.show_tips && !just_updated {
-            // never together with a message box (What's new, a question…)
+            // Do not interrupt an upgrade with a tip window.
             let ui = ui.clone();
             Timer::single_shot(Duration::from_millis(600), move || extra::show_tip_when_free(ui));
         }
