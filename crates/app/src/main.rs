@@ -463,11 +463,6 @@ fn run() -> anyhow::Result<()> {
     let updater_dlg = UpdateDialog::new()?;
     let about_dlg = AboutDialog::new()?;
     {
-        about_dlg.on_open_link(|u| {
-            if u.starts_with("https://") {
-                let _ = open::that_detached(u.as_str());
-            }
-        });
         let w = about_dlg.as_weak();
         about_dlg.on_close_window(move || {
             if let Some(d) = w.upgrade() {
@@ -691,7 +686,6 @@ fn run() -> anyhow::Result<()> {
             // until Start is pressed
             let early = early_download(&ui.ctx);
             let completed = ui.ctx.mgr.take_completed();
-            extra::finished_well(&ui, completed.len());
             extra::av1_tip(&ui, &completed);
             let finished: Vec<u64> = completed.into_iter().filter(|id| Some(*id) != early).collect();
             let s = ui.ctx.mgr.settings();
@@ -4255,6 +4249,7 @@ fn step_text(st: swiftget_engine::Step) -> String {
         Step::Move => "Moving the file to its folder",
         Step::Cut => "Cutting the part",
         Step::Check => "Checking the file",
+        Step::Thumbnail => "Saving the video thumbnail",
     })
 }
 

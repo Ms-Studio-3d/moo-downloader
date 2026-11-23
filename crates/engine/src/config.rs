@@ -428,9 +428,9 @@ pub struct Settings {
     pub gpu_drawing: bool,
     /// the word about AV1 videos (sound without picture in older players) was shown
     pub av1_tip_shown: bool,
-    /// downloads that finished well (for the word about supporting the program)
+    /// Legacy donation counters, kept so older settings round-trip. Unused.
     pub finished_count: u64,
-    /// when that word was shown last (seconds since 1970; 0 = never)
+    /// Legacy donation prompt time. No prompt uses this value any more.
     pub support_asked_at: u64,
     /// the key the browser add-in sends with every request (made at the
     /// first start; encrypted on the disk)

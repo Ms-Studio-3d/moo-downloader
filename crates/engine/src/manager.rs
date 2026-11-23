@@ -38,6 +38,9 @@ struct Entry {
     progress: Arc<Progress>,
     /// `Some` while a task is working on this download
     task: Option<CancellationToken>,
+    /// An immediate download appears in its queue without being serialized
+    /// by that queue. Starting the whole queue opts it into the queue limit.
+    queue_limited: bool,
     speed: SpeedMeter,
     /// bytes counted for the download quota so far
     quota_prev: u64,
@@ -189,7 +192,14 @@ impl Manager {
 
         let mut entries = BTreeMap::new();
         let mut next_id = 1;
+        let mut migrated_queues = false;
         for mut rec in store::load_downloads(&data_dir.join("downloads.json")) {
+            // Older immediate downloads had no queue and were invisible in
+            // the scheduler. Keep their status and give them a home there.
+            if rec.queue.is_none() {
+                rec.queue = Some(MAIN_QUEUE);
+                migrated_queues = true;
+            }
             if !matches!(rec.status, Status::Completed | Status::Failed | Status::Paused) {
                 rec.status = Status::Paused;
             }
@@ -212,6 +222,7 @@ impl Manager {
                     rec,
                     progress,
                     task: None,
+                    queue_limited: true,
                     speed: SpeedMeter::default(),
                     quota_prev: 0,
                 },
@@ -224,7 +235,7 @@ impl Manager {
             inner: Mutex::new(Inner {
                 entries,
                 next_id,
-                dirty: false,
+                dirty: migrated_queues,
                 last_save: Instant::now(),
                 sched_minute: None,
                 completed: Vec::new(),
@@ -359,6 +370,10 @@ impl Manager {
     }
 
     pub fn add(self: &Arc<Self>, mut req: NewDownload) -> DownloadId {
+        let queue_limited = req.queue.is_some() || !req.start;
+        // Every entry is available in the scheduler, including downloads
+        // added by the browser, CLI, imports and "Download Now".
+        req.queue = Some(req.queue.unwrap_or(MAIN_QUEUE));
         // an FTP address with its login in it: the login is kept apart (and
         // encrypted), the address without it
         if crate::ftp::is_ftp(&req.url) {
@@ -525,6 +540,7 @@ impl Manager {
                 limiter: Arc::new(SpeedLimiter::new(0)),
                 progress: Arc::new(Progress::default()),
                 task: None,
+                queue_limited,
                 speed: SpeedMeter::default(),
                 quota_prev: 0,
             },
@@ -541,6 +557,7 @@ impl Manager {
             let mut inner = self.inner.lock_ok();
             if let Some(e) = inner.entries.get_mut(&id) {
                 if matches!(e.rec.status, Status::Paused | Status::Failed) {
+                    e.queue_limited = e.rec.queue != Some(MAIN_QUEUE);
                     e.rec.status = Status::Queued;
                     e.rec.error = None;
                 }
@@ -1343,7 +1360,7 @@ impl Manager {
                 if let Some(q) = e.rec.queue {
                     let limit = settings.queue(q).map(|d| d.max_parallel).unwrap_or(1);
                     let now = per_queue.get(&q).copied().unwrap_or(0);
-                    if limit > 0 && now >= limit as usize {
+                    if e.queue_limited && limit > 0 && now >= limit as usize {
                         continue;
                     }
                     *per_queue.entry(q).or_default() += 1;
@@ -1373,6 +1390,9 @@ impl Manager {
             let mut inner = self.inner.lock_ok();
             let mut any = false;
             for e in inner.entries.values_mut() {
+                if e.rec.queue == Some(queue) && e.task.is_none() {
+                    e.queue_limited = true;
+                }
                 if e.rec.queue == Some(queue) && matches!(e.rec.status, Status::Paused | Status::Failed) {
                     e.rec.status = Status::Queued;
                     e.rec.error = None;
@@ -1429,6 +1449,7 @@ impl Manager {
             if let Some(e) = inner.entries.get_mut(&id) {
                 if e.rec.queue != queue {
                     e.rec.queue = queue;
+                    e.queue_limited = true;
                     // goes to the end of its new queue
                     e.rec.queue_pos = last.max(e.rec.id) + 1;
                 }
@@ -1563,6 +1584,35 @@ impl Manager {
             p.waiting.store(false, Ordering::Relaxed);
         }
         self.relink.lock_ok().remove(&id);
+        // Save the page's cover under the final name, after any merge,
+        // conversion or rename. A missing cover never fails the video.
+        if result.is_ok() && !cancel.is_cancelled() {
+            let cover = {
+                let inner = self.inner.lock_ok();
+                inner.entries.get(&id).and_then(|e| {
+                    if e.rec.kind == DownloadKind::Torrent {
+                        return None;
+                    }
+                    let page = e.rec.source_page.clone()?;
+                    let (stem, _) = filename::split_ext(&e.rec.file_name);
+                    Some((page, e.rec.save_dir.clone(), stem.to_string()))
+                })
+            };
+            if let Some((page, dir, stem)) = cover {
+                if let Some(p) = &progress {
+                    p.set_step(Some(Step::Thumbnail));
+                }
+                let token = cancel.clone();
+                let _ = self.rt.spawn_blocking(move || {
+                    if let Err(err) = ytdlp::fetch_thumbnail(&page, &dir, &stem, &token) {
+                        eprintln!("Could not save video thumbnail: {err:#}");
+                    }
+                }).await;
+                if let Some(p) = &progress {
+                    p.set_step(None);
+                }
+            }
+        }
         {
             let mut inner = self.inner.lock_ok();
             let mut finished = false;

@@ -684,6 +684,67 @@ fn with_cookies<T>(
     }
 }
 
+/// The video's thumbnail, next to the finished media under the same stem.
+/// Keep the site's original image format, so this does not require FFmpeg.
+/// Blocking, bounded and cancellable; callers may treat a missing image as
+/// optional without changing the completed video's status.
+pub fn fetch_thumbnail(page_url: &str, dir: &Path, stem: &str, cancel: &tokio_util::sync::CancellationToken) -> anyhow::Result<()> {
+    let tool = find_tool("yt-dlp").ok_or_else(|| anyhow!("yt-dlp.exe is missing"))?;
+    let dir = std::fs::canonicalize(dir).context("thumbnail folder is missing")?;
+    // Reuse the same site's browser login for private/age-limited videos.
+    let cookies = remembered_cookies(page_url).unwrap_or_default();
+    let file = if cookies.is_empty() { None } else { Some(cookie_file(&cookies)?) };
+    let result = (|| {
+        if cancel.is_cancelled() {
+            bail!("thumbnail download stopped");
+        }
+        let mut cmd = ytdlp_command(&tool);
+        cmd.args(["--ignore-config", "--skip-download", "--write-thumbnail", "--ignore-no-formats-error", "--no-playlist", "--no-overwrites", "--no-warnings", "--no-cache-dir"])
+            .args(["--socket-timeout", "15", "--retries", "1", "--extractor-retries", "1"])
+            .arg("-P").arg(&dir)
+            .arg("-o").arg(sidecar_template(stem));
+        if let Some(c) = file.as_deref() {
+            cmd.arg("--cookies").arg(c);
+        }
+        cmd.arg("--").arg(page_url)
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null());
+        let mut child = cmd.spawn().context("could not start yt-dlp for the thumbnail")?;
+        let started = std::time::Instant::now();
+        loop {
+            let status = match child.try_wait() {
+                Ok(status) => status,
+                Err(err) => {
+                    let _ = child.kill();
+                    let _ = child.wait();
+                    return Err(err.into());
+                }
+            };
+            if let Some(status) = status {
+                if status.success() {
+                    return Ok(());
+                }
+                bail!("the site did not provide a downloadable thumbnail");
+            }
+            if cancel.is_cancelled() || started.elapsed() >= Duration::from_secs(45) {
+                let _ = child.kill();
+                let _ = child.wait();
+                bail!("thumbnail download stopped or timed out");
+            }
+            std::thread::sleep(Duration::from_millis(100));
+        }
+    })();
+    if let Some(file) = file {
+        let _ = std::fs::remove_file(file);
+    }
+    result
+}
+
+fn sidecar_template(stem: &str) -> String {
+    // User titles are literal text, never yt-dlp template expressions.
+    format!("{}.%(ext)s", stem.replace('%', "%%"))
+}
+
 /// The subtitles of a video page (when the site has them), saved next to
 /// the video as "<name>.<language>.<ext>". `langs`: "ar en" (yt-dlp's own
 /// automatic translations are used when there are no real ones). Blocking.
@@ -700,7 +761,7 @@ pub fn fetch_subtitles(page_url: &str, dir: &Path, stem: &str, langs: &str) -> a
     // "ar" also takes "ar-EG" and the like
     let wanted = langs.iter().map(|l| format!("{l}.*")).chain(langs.iter().cloned()).collect::<Vec<_>>().join(",");
     // a name of ours as the output template: "%" means something to yt-dlp
-    let out = format!("{}.%(ext)s", stem.replace('%', "%%"));
+    let out = sidecar_template(stem);
     with_cookies(page_url, None, |file| {
         let mut cmd = ytdlp_command(&tool);
         cmd.args(["--ignore-config", "--skip-download", "--write-subs", "--write-auto-subs", "--no-playlist", "--no-warnings", "--no-cache-dir"])
@@ -1041,6 +1102,13 @@ pub fn update_now() -> anyhow::Result<String> {
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn sidecar_titles_cannot_expand_into_other_template_fields() {
+        assert_eq!(sidecar_template("درس [1] 100%"), "درس [1] 100%%.%(ext)s");
+        assert_eq!(sidecar_template("A %(id)s title"), "A %%(id)s title.%(ext)s");
+        assert_eq!(sidecar_template("عنوان الفيديو"), "عنوان الفيديو.%(ext)s");
+    }
 
     fn youtube_sample() -> Value {
         let h = json!({"User-Agent": "Mozilla/5.0 test", "Accept": "*/*", "Sec-Fetch-Mode": "navigate"});

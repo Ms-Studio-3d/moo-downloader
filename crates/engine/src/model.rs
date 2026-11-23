@@ -63,6 +63,8 @@ pub enum Step {
     Cut,
     /// the finished file compared with its checksum
     Check,
+    /// the video's thumbnail saved beside the media
+    Thumbnail,
 }
 
 impl Step {
@@ -74,6 +76,7 @@ impl Step {
             4 => Step::Move,
             5 => Step::Cut,
             6 => Step::Check,
+            7 => Step::Thumbnail,
             _ => return None,
         })
     }
@@ -85,6 +88,7 @@ impl Step {
             Step::Move => 4,
             Step::Cut => 5,
             Step::Check => 6,
+            Step::Thumbnail => 7,
         }
     }
 }
@@ -236,7 +240,7 @@ pub struct NewDownload {
     /// YouTube page + chosen quality, to get fresh links when old ones expire
     pub source_page: Option<String>,
     pub source_key: Option<String>,
-    /// put it in this download queue
+    /// Put it in this queue; None uses the main queue automatically.
     pub queue: Option<u64>,
     /// added together with others (a playlist, a batch): one "finished"
     /// window for all of them

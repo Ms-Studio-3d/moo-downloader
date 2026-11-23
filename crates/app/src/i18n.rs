@@ -721,6 +721,7 @@ const AR: &[(&str, &str)] = &[
     ("The magnet link could not be made.", "تعذر إنشاء رابط magnet."),
     ("Sent to others: {} (ratio {})", "تم الإرسال للآخرين: {} (النسبة {})"),
     ("Checking the file", "جارٍ فحص الملف"),
+    ("Saving the video thumbnail", "جارٍ حفظ صورة الفيديو المصغرة"),
     ("The downloaded file is damaged: its checksum is not the one it should have. Click Redownload.", "الملف الذي تم تحميله تالف: رمز التحقق الخاص به ليس هو المطلوب. اضغط إعادة التحميل."),
     ("The file on the server changed since the download began, so its parts would not fit together. Click Redownload.", "الملف على الخادم تغيّر منذ بدء التحميل، فأجزاؤه لن تتطابق معًا. اضغط إعادة التحميل."),
     ("The link opens one web page after another, not a file. Open it in the browser and download it from there.", "الرابط يفتح صفحة ويب بعد أخرى وليس ملفًا. افتحه في المتصفح وحمّله من هناك."),
