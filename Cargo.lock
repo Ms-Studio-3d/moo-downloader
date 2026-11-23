@@ -1745,15 +1745,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "moo-host"
-version = "1.0.12"
-dependencies = [
- "ring",
- "serde_json",
- "windows-sys 0.59.0",
-]
-
-[[package]]
 name = "fastrand"
 version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4248,6 +4239,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "moo-host"
+version = "1.0.12"
+dependencies = [
+ "ring",
+ "serde_json",
+ "windows-sys 0.59.0",
+]
+
+[[package]]
 name = "moxcms"
 version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6638,6 +6638,8 @@ dependencies = [
  "tokio-util",
  "tray-icon",
  "url",
+ "windows",
+ "windows-core",
  "windows-sys 0.59.0",
  "winresource",
 ]
