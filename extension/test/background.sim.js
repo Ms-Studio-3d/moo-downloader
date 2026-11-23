@@ -1,4 +1,4 @@
-// Runs background.js with a fake `chrome` API and a fake SwiftGet app.
+// Runs background.js with a fake browser API and a fake Moo Downloader app.
 // node extension/test/background.sim.js
 const fs = require("fs"), path = require("path"), vm = require("vm"), assert = require("assert");
 const dir = path.join(__dirname, "..");
@@ -17,7 +17,7 @@ const chrome = {
   downloads: { onCreated: on("dl"), onDeterminingFilename: on("det"), cancel: async (id) => { cancelled.push(id); }, erase: async () => {}, download: (o) => browserDl.push(o.url),
                search: async () => [], removeFile: async () => {} },
   webRequest: { onHeadersReceived: on("headers"), onBeforeRequest: on("before"), onBeforeSendHeaders: on("beforeSend"), onSendHeaders: on("sendHeaders") },
-  tabs: { onUpdated: on("upd"), onRemoved: on("rm"), onCreated: on("tabNew"), get: async (id) => ({ id, url: tabUrl }), query: async () => [{ id: 7 }], remove: async () => {},
+  tabs: { onUpdated: on("upd"), onRemoved: on("rm"), onCreated: on("tabNew"), get: async (id) => ({ id, url: tabUrl, incognito: id === 9 }), query: async () => [{ id: 7 }, { id: 9, incognito: true }], remove: async () => {},
           sendMessage: async (id, m) => tabMsgs.push(m) },
   action: { setBadgeBackgroundColor: () => {}, setBadgeText: async () => {} },
   runtime: { onInstalled: on("inst"), onStartup: on("start"), onMessage: on("msg"), getManifest: () => ({ version: "1.0.4" }), reload: () => { reloads++; }, getURL: (p) => "chrome-extension://sim/" + p },
@@ -58,6 +58,26 @@ const gv = (itag, mime, clen, dur, r) => `https://rr1---sn-x.googlevideo.com/vid
 const tick = () => new Promise((r) => setTimeout(r, 20));
 
 (async () => {
+  // A private/container tab must use its own store, and only the video
+  // page's cookies are sent to the resolver (not an unrelated referer).
+  const cookieQueries = [];
+  const originalGetAll = chrome.cookies.getAll;
+  chrome.cookies.getAll = async (query) => { cookieQueries.push(query); return originalGetAll(query); };
+  await ctx.askApp("https://private.example/video", "https://other.example/page", false, { id: 9, incognito: true });
+  assert.strictEqual(cookieQueries.at(-1).url, "https://private.example/video");
+  assert.strictEqual(cookieQueries.at(-1).storeId, "1");
+  assert.strictEqual(ytCalls.at(-1).cookieList[0].name, "private");
+  assert.strictEqual(ytCalls.at(-1).isolatedSession, true);
+  const originalStores = chrome.cookies.getAllCookieStores;
+  chrome.cookies.getAllCookieStores = async () => { throw new Error("unavailable"); };
+  const countBefore = cookieQueries.length;
+  await ctx.askApp("https://private.example/video", null, false, { id: 9, incognito: true });
+  assert.strictEqual(cookieQueries.length, countBefore, "never read the normal store when the private store is unavailable");
+  assert.strictEqual(ytCalls.at(-1).cookieList.length, 0);
+  chrome.cookies.getAllCookieStores = originalStores;
+  chrome.cookies.getAll = originalGetAll;
+  ytCalls.length = 0;
+
   // player loads an ad, then the real video in many pieces
   listeners.before({ tabId: 7, url: gv(136, "video/mp4", 5e6, "15.0", "0-1000") });
   await tick();

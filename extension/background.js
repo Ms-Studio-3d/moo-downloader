@@ -482,6 +482,7 @@ async function appAlive() {
  * the window (a private window, a Firefox container) the file came from.
  */
 async function cookieHeader(url, store) {
+  if (store === null) return ""; // never use a normal session for a private tab
   try {
     const q = store ? { url, storeId: store } : { url };
     const cookies = await chrome.cookies.getAll(q);
@@ -504,18 +505,18 @@ async function storeOf(item) {
       stores.find((st) => (st.tabIds || []).some((id) => privateTabs.has(id))) ||
       // the private store when no private tab is open any more (the
       // download's tab closed): the one that is not the normal one
-      stores.find((st) => st.id === "firefox-private") ||
-      stores.find((st) => st.id !== "0" && st.id !== "firefox-default");
-    return s ? s.id : undefined;
+      stores.find((st) => st.id === "firefox-private");
+    return s ? s.id : null;
   } catch {
-    return undefined;
+    return null;
   }
 }
 
 /** The site's cookies for the app, only used if the site asks for a login. */
-async function cookieList(url) {
+async function cookieList(url, store) {
+  if (store === null) return [];
   try {
-    const list = await chrome.cookies.getAll({ url });
+    const list = await chrome.cookies.getAll(store ? { url, storeId: store } : { url });
     return list.map((c) => ({
       domain: c.domain,
       name: c.name,
@@ -697,7 +698,6 @@ async function sendToApp({ url, audioUrl, referrer, fileName, headers, sourcePag
   // the browser's own request for this file: its headers go along (the app
   // keeps its own Accept / Range); its cookie is the one the site really got
   const sent = headers ? null : browserRequest(url, alsoUrl);
-  const sentCookie = sent && sent.find((h) => /^cookie$/i.test(h.name));
   const sentReferer = sent && sent.find((h) => /^referer$/i.test(h.name));
   const sentUa = sent && sent.find((h) => /^user-agent$/i.test(h.name));
   const passOn = sent ? sent.filter((h) => !/^(cookie|referer|user-agent)$/i.test(h.name)).map((h) => [h.name, h.value]) : null;
@@ -708,7 +708,9 @@ async function sendToApp({ url, audioUrl, referrer, fileName, headers, sourcePag
     sourcePage: sourcePage || null,
     sourceKey: sourceKey || null,
     referrer: referrer || (sentReferer && sentReferer.value) || null,
-    cookies: (sentCookie && sentCookie.value) || (await cookieHeader(url, store)),
+    // A URL can be visited by several profiles; cached request headers are
+    // keyed by URL, so cookies must come from this download's own store.
+    cookies: await cookieHeader(url, store),
     userAgent: (sentUa && sentUa.value) || navigator.userAgent,
     fileName: fileName || null,
     clip: clip || null,
@@ -927,7 +929,7 @@ async function appCanFetch(url, item, form) {
     const body = {
       url,
       referrer: item.referrer || (pick("referer") && pick("referer").value) || null,
-      cookies: (pick("cookie") && pick("cookie").value) || (await cookieHeader(url, await storeOf(item))),
+      cookies: await cookieHeader(url, await storeOf(item)),
       userAgent: (pick("user-agent") && pick("user-agent").value) || navigator.userAgent,
       headers: passOn && passOn.length ? passOn : null,
       ...(form ? form : {}),
@@ -1586,7 +1588,7 @@ chrome.storage.onChanged.addListener((ch, area) => {
 // Ask the app (yt-dlp) for the qualities of a video page.
 const resolving = new Map(); // tabId -> page being resolved
 
-async function askApp(page, referer, startApp = false) {
+async function askApp(page, referer, startApp = false, tab) {
   const { port } = await getOpts();
   const r = await fetchWithTimeout(
     apiUrl(port, "/resolve"),
@@ -1594,7 +1596,12 @@ async function askApp(page, referer, startApp = false) {
       startApp,
       method: "POST",
       headers: { "Content-Type": "application/json", "X-SwiftGet": "1" },
-      body: JSON.stringify({ url: page, cookieList: await cookieList(referer || page), referer: referer || null }),
+      body: JSON.stringify({
+        url: page,
+        cookieList: await cookieList(page, await storeOf(tab)),
+        referer: referer || null,
+        isolatedSession: !!(tab && (tab.incognito || (tab.cookieStoreId && tab.cookieStoreId !== "firefox-default" && tab.cookieStoreId !== "0"))),
+      }),
     },
     90000
   );
@@ -1624,7 +1631,9 @@ async function resolveYoutube(tabId, pageUrl) {
   await patchYt(tabId, videoId, { resolving: true, resolveError: null });
   let change;
   try {
-    change = await askApp(`https://www.youtube.com/watch?v=${videoId}`);
+    const tab = await chrome.tabs.get(tabId).catch(() => null);
+    if (!tab) throw new Error("The browser tab is no longer available");
+    change = await askApp(`https://www.youtube.com/watch?v=${videoId}`, undefined, false, tab);
   } catch (e) {
     change = { resolveError: (await appAlive()) ? String((e && e.message) || e) : "Moo Downloader is not running" };
   } finally {
@@ -1653,7 +1662,9 @@ async function resolvePage(tabId, page, embedded = false) {
   pushToTab(tabId);
   let change;
   try {
-    change = await askApp(page);
+    const tab = await chrome.tabs.get(tabId).catch(() => null);
+    if (!tab) throw new Error("The browser tab is no longer available");
+    change = await askApp(page, undefined, false, tab);
   } catch (e) {
     change = { resolveError: (await appAlive()) ? String((e && e.message) || e) : "Moo Downloader is not running" };
   } finally {
@@ -1673,7 +1684,7 @@ async function resolveOneVideo(msg, tab) {
   if (msg.resolve && /^https?:/i.test(msg.resolve)) {
     try {
       // the user asked (a player's own menu): a closed program is opened
-      const r = await askApp(msg.resolve, tab && tab.url, true);
+      const r = await askApp(msg.resolve, tab && tab.url, true, tab);
       if (r.resolved && r.resolved.options.length) return { items: optionItems(r.resolved, msg.resolve) };
       return { error: r.resolveError || "Can't get this video" };
     } catch (e) {
@@ -1710,7 +1721,7 @@ async function resolveOneVideo(msg, tab) {
   let problem = "";
   if (page && /^https?:/i.test(page)) {
     try {
-      const r = await askApp(page);
+      const r = await askApp(page, undefined, false, tab);
       if (r.resolved && r.resolved.options.length) items.unshift(...optionItems(r.resolved, page));
       else problem = r.resolveError || "Can't get this video";
     } catch (e) {
@@ -1790,7 +1801,7 @@ async function sendAllLinks(tab, selection) {
       body: JSON.stringify({
         page: res.page || tab.url,
         links: res.links,
-        cookies: await cookieHeader(res.page || tab.url),
+        cookies: await cookieHeader(res.page || tab.url, await storeOf(tab)),
         userAgent: navigator.userAgent,
       }),
     },
