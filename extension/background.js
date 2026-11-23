@@ -1551,14 +1551,14 @@ function partOf(c) {
 
 async function downloadVideo(option, pageTitle, pageUrl, clip, store) {
   const title = cleanYoutubeTitle(option.title || pageTitle);
-  const name = option.quality === "mp3" ? `${title}.mp3` : `${title} [${option.quality}].${option.ext}`;
+  const name = `${title}.${option.quality === "mp3" ? "mp3" : option.ext}`;
   await sendToApp({
     url: option.videoUrl,
     audioUrl: option.audioUrl,
     referrer: option.source && !isYoutube(option.source) ? option.source : pageUrl || "https://www.youtube.com/",
     fileName: name,
     headers: option.headers,
-    sourcePage: option.source,
+    sourcePage: option.source || (isYoutube(pageUrl || "") ? pageUrl : undefined),
     sourceKey: option.key,
     clip,
     store,

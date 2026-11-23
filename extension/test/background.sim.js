@@ -78,9 +78,23 @@ const tick = () => new Promise((r) => setTimeout(r, 20));
   const req = sent[0];
   assert(req.url.includes("itag=137") && !req.url.includes("range="));
   assert(req.audioUrl.includes("itag=140"));
-  assert.strictEqual(req.fileName, "Cool video [1080p].mp4");
+  assert.strictEqual(req.fileName, "Cool video.mp4");
+  assert.strictEqual(req.sourcePage, "https://www.youtube.com/watch?v=AAAAAAAAAAA", "detected streams keep the video page for its thumbnail");
   assert.strictEqual(req.userAgent, "TestUA");
   console.log("sent to app:", req.fileName, "| audio:", !!req.audioUrl);
+
+  // Names never inherit quality/size labels, including audio and titles
+  // that already contain brackets or percent signs.
+  for (const [quality, ext, expected] of [
+    ["2160p", "webm", "درس [الجزء 1] 100%.webm"],
+    ["audio", "m4a", "درس [الجزء 1] 100%.m4a"],
+    ["mp3", "m4a", "درس [الجزء 1] 100%.mp3"],
+  ]) {
+    await ctx.downloadVideo({ quality, ext, videoUrl: "https://gv/test", label: "4K · 200 MB", sub: "200 MB" },
+      "درس [الجزء 1] 100% - YouTube", tabUrl);
+    assert.strictEqual(sent[sent.length - 1].fileName, expected);
+    assert.strictEqual(sent[sent.length - 1].sourcePage, tabUrl);
+  }
 
   // navigating to another video clears the list
   tabUrl = "https://www.youtube.com/watch?v=BBBBBBBBBBB";
@@ -103,7 +117,7 @@ const tick = () => new Promise((r) => setTimeout(r, 20));
     listeners.msg({ type: "swiftget-download", item: final[0], title: "ignored - YouTube" }, { tab: { id: 7, url: tabUrl } }, resolve));
   assert.strictEqual(res2.ok, true);
   const req2 = sent[sent.length - 1];
-  assert.strictEqual(req2.fileName, "Real_ Title [1080p].mp4");
+  assert.strictEqual(req2.fileName, "Real_ Title.mp4");
   assert.strictEqual(req2.sourcePage, "https://www.youtube.com/watch?v=BBBBBBBBBBB");
   assert.strictEqual(req2.sourceKey, "1080p|MP4");
   assert.strictEqual(req2.audioUrl, "https://gv/140");
