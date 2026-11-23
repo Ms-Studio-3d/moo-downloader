@@ -14,7 +14,7 @@
   #define Stage "..\build-cache\stage"
 #endif
 #ifndef MyAppVersion
-  #define MyAppVersion "1.0.11"
+  #define MyAppVersion "1.0.12"
 #endif
 
 [Setup]

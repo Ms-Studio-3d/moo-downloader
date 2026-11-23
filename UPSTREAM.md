@@ -3,7 +3,9 @@
 Based on the user-supplied Ezoo Download 1.0.11 source by Ahmed Ezzat.
 The previous Moo Downloader 1.0.0 source was checked at commit 7a0286a.
 
-Original author attribution, support links and the supplied LICENSE are retained.
+Original author attribution and the supplied LICENSE are retained in the source
+and legal notices. At the user's request, donation links, donation reminders and
+the original author's promotional links have been removed from the application UI.
 The supplied LICENSE is restrictive, although the incoming Cargo metadata said MIT.
 This adaptation reflects the supplied LICENSE in Cargo metadata and does not claim
 that the new code is MIT licensed. Permission to redistribute the new source has

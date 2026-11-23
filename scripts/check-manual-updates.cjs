@@ -33,11 +33,12 @@ assert.equal(sources.filter(s => /tools::update_all\(/.test(s.text)).length, 1, 
 assert.equal(sources.filter(s => /ytdlp::update_now/.test(s.text)).length, 1, 'only the manual helper action updates yt-dlp');
 const firefox = JSON.parse(read('extension/manifest.firefox.json'));
 const chrome = JSON.parse(read('extension/manifest.json'));
+const version = /^version\s*=\s*"([^"]+)"/m.exec(read('Cargo.toml'))[1];
 assert.equal(firefox.browser_specific_settings.gecko.id, 'moo-downloader@ms-studio-3d');
 assert.equal(firefox.browser_specific_settings.gecko.update_url, undefined);
 for (const manifest of [firefox, chrome]) {
   assert.equal(manifest.name, 'Moo Downloader');
-  assert.equal(manifest.version, '1.0.11');
+  assert.equal(manifest.version, version);
   assert.equal(manifest.update_url, undefined);
   for (const script of manifest.content_scripts.flatMap(c => c.js)) {
     assert.ok(fs.existsSync(path.join(root, 'extension', script)), script);
@@ -54,7 +55,7 @@ assert.match(installer, /DefaultDirName=\{localappdata\}\\Programs\\Moo Download
 for (const option of ['autostart', 'torrents', 'firewall']) {
   assert.match(installer, new RegExp('Name: "' + option + '";[^\\n]*Flags: unchecked'));
 }
-assert.match(read('crates/app/ui/dialogs.slint'), /Coded by Ahmed Ezzat/);
+assert.match(read('UPSTREAM.md'), /source by Ahmed Ezzat/);
 assert.match(read('LICENSE'), /Copyright \(c\) 2026 Ezoo Tech \(Ahmed Ezzat\)/);
 const workflow = read('.github/workflows/build.yml');
 assert.doesNotMatch(workflow, /gh release (create|delete)|UPDATE_SIGNING_KEY|IS_RELEASE/);
