@@ -1,8 +1,8 @@
 //! Things Slint has no setting for, done with Windows itself:
 //!
 //! * window opacity (Options > General > Window opacity)
-//! * every window opens in the middle of the screen; only the main window
-//!   can be maximized (the others are resized from their edges)
+//! * the main window remembers its position; other windows open centered
+//!   and only the main window can be maximized
 //! * the progress of a download on its window's taskbar button
 //! * dragging a finished file out of the list onto the desktop / a folder
 
@@ -30,6 +30,17 @@ fn hwnd_of(w: &slint::Window) -> Option<isize> {
         RawWindowHandle::Win32(raw) => Some(raw.hwnd.get()),
         _ => None,
     }
+}
+
+/// Last normal position, also available while hidden/minimized/maximized.
+#[cfg(windows)]
+pub(crate) fn main_position(w: &slint::Window) -> Option<(i32, i32)> {
+    crate::window_position::read(hwnd_of(w)? as windows_sys::Win32::Foundation::HWND, AWAY)
+}
+
+#[cfg(not(windows))]
+pub(crate) fn main_position(_w: &slint::Window) -> Option<(i32, i32)> {
+    None
 }
 
 /// Make `w` `pct` % solid (50..=100). Called again every second for the main
@@ -206,13 +217,14 @@ fn has_system_window(_w: &slint::Window) -> bool {
 }
 
 #[cfg(windows)]
-fn place_now(w: &slint::Window, maximizable: bool) {
+fn place_now(w: &slint::Window, maximizable: bool, position: Option<(i32, i32)>) {
     use slint::winit_030::{winit, WinitWindowAccessor};
-    w.with_winit_window(|win: &winit::window::Window| place_winit(win, maximizable));
+    w.with_winit_window(|win: &winit::window::Window| place_winit(win, maximizable, position));
 }
 
 #[cfg(windows)]
-fn place_winit(win: &slint::winit_030::winit::window::Window, maximizable: bool) {
+fn place_winit(win: &slint::winit_030::winit::window::Window, maximizable: bool, position: Option<(i32, i32)>) {
+    use raw_window_handle::{HasWindowHandle, RawWindowHandle};
     use slint::winit_030::winit;
     use winit::window::WindowButtons;
     if !win.is_decorated() {
@@ -231,6 +243,15 @@ fn place_winit(win: &slint::winit_030::winit::window::Window, maximizable: bool)
     if win.is_maximized() {
         // it fills its screen already
         return;
+    }
+    if let Some(position) = position {
+        if let Ok(handle) = win.window_handle() {
+            if let RawWindowHandle::Win32(raw) = handle.as_raw() {
+                if crate::window_position::restore(raw.hwnd.get() as windows_sys::Win32::Foundation::HWND, position) {
+                    return;
+                }
+            }
+        }
     }
     // the screen of the mouse (where the user is working), else the main one
     let monitor = cursor_monitor(win).or_else(|| win.primary_monitor()).or_else(|| win.current_monitor());
@@ -256,7 +277,7 @@ fn cursor_monitor(win: &slint::winit_030::winit::window::Window) -> Option<slint
 }
 
 #[cfg(not(windows))]
-fn place_now(_w: &slint::Window, _maximizable: bool) {}
+fn place_now(_w: &slint::Window, _maximizable: bool, _position: Option<(i32, i32)>) {}
 
 /// Time for the first picture of a window that was just put on its place
 /// away from the screen.
@@ -270,19 +291,20 @@ where
     C: ComponentHandle + 'static,
     for<'a> crate::Theme<'a>: slint::Global<'a, C>,
 {
-    place_then(weak, maximizable, || {});
+    wait_for_picture(weak, maximizable, None, Box::new(|| {}), 0, false);
 }
 
-/// The same, and `then` once the window is on the screen.
-pub(crate) fn place_then<C>(weak: slint::Weak<C>, maximizable: bool, then: impl FnOnce() + 'static)
+/// Main window: restore its position instead of centering on every show.
+/// `then` may maximize it after its normal position has been restored.
+pub(crate) fn place_main<C>(weak: slint::Weak<C>, position: Option<(i32, i32)>, then: impl FnOnce() + 'static)
 where
     C: ComponentHandle + 'static,
     for<'a> crate::Theme<'a>: slint::Global<'a, C>,
 {
-    wait_for_picture(weak, maximizable, Box::new(then), 0, false);
+    wait_for_picture(weak, true, position, Box::new(then), 0, false);
 }
 
-fn wait_for_picture<C>(weak: slint::Weak<C>, maximizable: bool, then: Box<dyn FnOnce()>, tries: u32, seen: bool)
+fn wait_for_picture<C>(weak: slint::Weak<C>, maximizable: bool, position: Option<(i32, i32)>, then: Box<dyn FnOnce()>, tries: u32, seen: bool)
 where
     C: ComponentHandle + 'static,
     for<'a> crate::Theme<'a>: slint::Global<'a, C>,
@@ -297,7 +319,7 @@ where
         }
         let there = has_system_window(c.window());
         if there && (seen || tries == 0) {
-            place_now(c.window(), maximizable);
+            place_now(c.window(), maximizable, position);
             // on the screen now: drawn whole (Windows kept nothing of what
             // was drawn away from the screen; only changed parts were drawn
             // again and the rest stayed white)
@@ -305,9 +327,9 @@ where
             c.window().request_redraw();
             then();
         } else if there {
-            wait_for_picture(weak, maximizable, then, tries + 1, true);
+            wait_for_picture(weak, maximizable, position, then, tries + 1, true);
         } else if tries < 250 {
-            wait_for_picture(weak, maximizable, then, tries + 1, false);
+            wait_for_picture(weak, maximizable, position, then, tries + 1, false);
         } else {
             then();
         }

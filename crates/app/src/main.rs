@@ -25,6 +25,8 @@ mod sound;
 mod tray;
 mod update;
 mod winfx;
+#[cfg(windows)]
+mod window_position;
 
 use swiftget_engine::sync::LockOk;
 use slint::{ComponentHandle, Model, ModelRc, SharedString, Timer, TimerMode, VecModel, Weak};
@@ -743,7 +745,11 @@ fn run() -> anyhow::Result<()> {
 
     {
         let mgr = mgr.clone();
+        let weak = main.as_weak();
         main.window().on_close_requested(move || {
+            if let Some(m) = weak.upgrade() {
+                remember_main_position(&mgr, m.window());
+            }
             // with the icon next to the clock, closing only hides the window
             if !(has_tray && mgr.settings().close_to_tray) {
                 let _ = slint::quit_event_loop();
@@ -774,10 +780,9 @@ fn run() -> anyhow::Result<()> {
         winfx::latin_shortcuts(main.window());
         // the menus of Windows in the look of the program from the start
         winmenu::set_dark_menus(main.global::<Theme>().get_dark());
-        // the main window: in the middle of the screen (once drawn), and it
-        // can be maximized; maximized there, so it comes back there
+        // Restore its last normal position before maximizing, once drawn.
         let w = main.as_weak();
-        winfx::place_then(main.as_weak(), true, move || {
+        winfx::place_main(main.as_weak(), mgr.settings().main_position, move || {
             if was_maximized {
                 if let Some(m) = w.upgrade() {
                     m.window().set_maximized(true);
@@ -816,6 +821,7 @@ fn run() -> anyhow::Result<()> {
         });
     }
     slint::run_event_loop_until_quit()?;
+    remember_main_position(&mgr, main.window());
     note("closed");
     preview::clean_all();
     {
@@ -1493,6 +1499,7 @@ fn tray_action(ui: &Ui, action: tray::TrayAction) {
                 let Some(w) = ui.ctx.main.upgrade() else { return };
                 let shown = w.window().is_visible() && !w.window().is_minimized();
                 if shown {
+                    remember_main_position(&ui.ctx.mgr, w.window());
                     // open already: to the tray (or the taskbar)
                     if ui.ctx.mgr.settings().close_to_tray {
                         let _ = w.hide();
@@ -2366,11 +2373,12 @@ pub(crate) fn bring_to_front(ctx: &Ctx) {
         // the main window keeps its maximize button (open_window! is for the others)
         let was_open = w.window().is_visible();
         if !was_open {
+            remember_main_position(&ctx.mgr, w.window());
             winfx::send_away(w.window());
         }
         let _ = w.show();
         if !was_open {
-            winfx::place(w.as_weak(), true);
+            winfx::place_main(w.as_weak(), ctx.mgr.settings().main_position, || {});
         }
         to_front!(w);
     }
@@ -2379,6 +2387,17 @@ pub(crate) fn bring_to_front(ctx: &Ctx) {
 // ------------------------------------------------------------ window sizes
 // The size the user gave a window is kept (Options don't have it: it is
 // dragged), and the window opens with it next time.
+
+/// Save before hiding/exiting as well as periodically, including an immediate
+/// move then close. Native normal coordinates also work while maximized.
+fn remember_main_position(mgr: &Arc<Manager>, w: &slint::Window) {
+    let Some(position) = winfx::main_position(w) else { return };
+    let mut s = mgr.settings();
+    if s.main_position != Some(position) {
+        s.main_position = Some(position);
+        let _ = mgr.set_settings(s);
+    }
+}
 
 thread_local! {
     // the size each window had at the last look (saved once it stays the same)
@@ -2419,6 +2438,10 @@ pub(crate) fn follow_size(mgr: &Arc<Manager>, key: &str, size: Option<(f32, f32)
 fn follow_sizes(ui: &Ui) {
     if let Some(m) = ui.ctx.main.upgrade() {
         follow_size(&ui.ctx.mgr, "main", size_now(m.window()));
+        // Avoid disk writes throughout a drag; close/hide still save at once.
+        if !winfx::left_button_down() {
+            remember_main_position(&ui.ctx.mgr, m.window());
+        }
     }
     for (d, _) in ui.progress.borrow().values() {
         // the height counts only with the details shown (without them the

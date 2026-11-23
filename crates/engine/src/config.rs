@@ -419,6 +419,9 @@ pub struct Settings {
     /// size of each window the user made bigger / smaller (logical pixels):
     /// "main", "progress"...
     pub window_sizes: std::collections::BTreeMap<String, (f32, f32)>,
+    /// Last normal position of the main window (Windows workspace coordinates).
+    /// None on an older install: center it once, then remember the user's move.
+    pub main_position: Option<(i32, i32)>,
     /// the main window was maximized when the program closed
     pub main_maximized: bool,
     /// the progress window shows its details (connections list)
@@ -537,6 +540,7 @@ impl Default for Settings {
             start_while_info: true,
             language: String::new(),
             window_sizes: Default::default(),
+            main_position: None,
             main_maximized: false,
             progress_details: false,
             gpu_drawing: false,
