@@ -36,6 +36,7 @@ pub(crate) fn open_category(ui: &Ui, name: Option<String>) {
             d.set_name(SharedString::new());
             d.set_exts(SharedString::new());
             d.set_sites(SharedString::new());
+            d.set_name_contains(SharedString::new());
             d.set_folder(SharedString::new());
         }
         Some("General") => {
@@ -44,6 +45,7 @@ pub(crate) fn open_category(ui: &Ui, name: Option<String>) {
             d.set_name("General".into());
             d.set_exts("(every other file type)".into());
             d.set_sites(SharedString::new());
+            d.set_name_contains(SharedString::new());
             d.set_folder(s.category_dirs.get("General").map(|p| p.display().to_string()).unwrap_or_default().into());
         }
         Some(n) => {
@@ -53,6 +55,7 @@ pub(crate) fn open_category(ui: &Ui, name: Option<String>) {
             d.set_name(c.name.clone().into());
             d.set_exts(c.exts.join(" ").into());
             d.set_sites(c.sites.join(" ").into());
+            d.set_name_contains(c.name_contains.join("; ").into());
             d.set_folder(s.category_dirs.get(n).map(|p| p.display().to_string()).unwrap_or_default().into());
         }
     }
@@ -81,6 +84,7 @@ fn save_category(ui: &Ui) {
         .filter(|e| !e.is_empty() && !e.starts_with('('))
         .collect();
     let sites: Vec<String> = d.get_sites().split_whitespace().map(|x| x.to_lowercase()).collect();
+    let name_contains: Vec<String> = d.get_name_contains().split(';').map(|x| x.trim().to_string()).filter(|x| !x.is_empty()).collect();
     let folder = d.get_folder().trim().to_string();
     match editing.as_deref() {
         Some("General") => {}
@@ -89,6 +93,7 @@ fn save_category(ui: &Ui) {
                 c.name = name.clone();
                 c.exts = exts.clone();
                 c.sites = sites;
+                c.name_contains = name_contains;
             }
             // a type belongs to one category only
             for c in s.categories.iter_mut().filter(|c| c.name != name) {
@@ -104,7 +109,7 @@ fn save_category(ui: &Ui) {
             for c in s.categories.iter_mut() {
                 c.exts.retain(|e| !exts.contains(e));
             }
-            s.categories.push(CategoryDef { name: name.clone(), exts, sites, builtin: false });
+            s.categories.push(CategoryDef { name: name.clone(), exts, sites, name_contains, builtin: false });
         }
     }
     if folder.is_empty() {

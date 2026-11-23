@@ -1,0 +1,72 @@
+import { Button, ListView } from "std-widgets.slint";
+import { Theme, ThemedWindow, HRow } from "common.slint";
+export { Theme }
+
+export struct MiniDownloadRow {
+    name: string,
+    detail: string,
+    progress: float,
+}
+
+export component MiniMonitor inherits ThemedWindow {
+    title: @tr("Moo Downloader — Mini monitor");
+    preferred-width: 360px;
+    preferred-height: 250px;
+    min-width: 300px;
+    min-height: 200px;
+    always-on-top: true;
+    in property <string> summary;
+    in property <[MiniDownloadRow]> rows;
+    callback open-main();
+
+    VerticalLayout {
+        padding: 12px;
+        spacing: 6px;
+        Text {
+            text: root.summary;
+            color: Theme.text;
+            font-weight: 700;
+            horizontal-alignment: Theme.rtl ? TextHorizontalAlignment.right : TextHorizontalAlignment.left;
+        }
+        ListView {
+            vertical-stretch: 1;
+            for row in root.rows: Rectangle {
+                width: parent.width;
+                height: 48px;
+                clip: true;
+                VerticalLayout {
+                    spacing: 2px;
+                    Text {
+                        text: row.name;
+                        color: Theme.text;
+                        overflow: elide;
+                        horizontal-alignment: Theme.rtl ? TextHorizontalAlignment.right : TextHorizontalAlignment.left;
+                    }
+                    Text {
+                        text: row.detail;
+                        color: Theme.muted;
+                        font-size: 11px;
+                        horizontal-alignment: Theme.rtl ? TextHorizontalAlignment.right : TextHorizontalAlignment.left;
+                    }
+                    Rectangle {
+                        height: 4px;
+                        background: Theme.grid;
+                        Rectangle {
+                            width: parent.width * max(0, min(1, row.progress));
+                            height: parent.height;
+                            x: Theme.rtl ? parent.width - self.width : 0;
+                            background: Theme.accent;
+                        }
+                    }
+                }
+            }
+        }
+        HRow {
+            alignment: end;
+            Button {
+                text: @tr("Open Moo Downloader");
+                clicked => { root.open-main(); }
+            }
+        }
+    }
+}

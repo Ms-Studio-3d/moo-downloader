@@ -10,6 +10,24 @@ msgstr "تحميل ملف من رابط تكتبه أو تلصقه (Ctrl+N)."
 msgid "Download many links at once, or numbered files from one address (Ctrl+B)."
 msgstr "تحميل روابط كثيرة مرة واحدة، أو ملفات مرقمة من رابط واحد (Ctrl+B)."
 
+msgid "File name contains"
+msgstr "اسم الملف يحتوي على"
+
+msgid "Mini monitor"
+msgstr "نافذة المتابعة"
+
+msgid "Moo Downloader — Mini monitor"
+msgstr "Moo Downloader — نافذة المتابعة"
+
+msgid "Open Moo Downloader"
+msgstr "فتح Moo Downloader"
+
+msgid "Words or phrases, separated by ;"
+msgstr "كلمات أو عبارات، افصل بينها بعلامة ;"
+
+msgid "Rules are checked by site, then file name, then extension. Matching files are saved to this category's folder."
+msgstr "تُطبّق القواعد حسب الموقع، ثم اسم الملف، ثم الامتداد. تُحفظ الملفات المطابقة في مجلد هذا التصنيف."
+
 msgid "Continue the selected downloads from where they stopped."
 msgstr "استكمال التحميلات المحددة من حيث توقفت."
 

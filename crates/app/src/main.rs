@@ -29,6 +29,10 @@ mod scheduler;
 mod sound;
 mod tray;
 mod update;
+mod video_updates;
+mod mini_monitor;
+#[cfg(windows)]
+mod drop_links;
 mod winfx;
 #[cfg(windows)]
 mod window_position;
@@ -454,9 +458,9 @@ fn run() -> anyhow::Result<()> {
         .enable_all()
         .build()?;
     let mgr = Manager::new(rt.handle().clone(), data_dir.clone())?;
-    // Helpers are updated only from the Help menu.
 
     let main = MainWindow::new()?;
+    let mini = MiniMonitor::new()?;
     main.set_app_version(env!("CARGO_PKG_VERSION").into());
     let add = AddDialog::new()?;
     let batch = BatchDialog::new()?;
@@ -562,7 +566,6 @@ fn run() -> anyhow::Result<()> {
     }
 
     wire_main(&ui);
-    // a new version of the program itself: from GitHub, installed silently
     wire_add(&ui);
     wire_batch(&ui);
     wire_complete(&ui);
@@ -573,6 +576,8 @@ fn run() -> anyhow::Result<()> {
     playlist::wire(&ui);
     torrent_ui::wire(&ui);
     browser::wire(&ui);
+    let _mini_timer = mini_monitor::wire(&ctx, &mini);
+    let _update_timer = video_updates::start(&ui);
 
     // ------------------------------------------------------------ browser + clipboard
     if server.is_some() || main_server.is_some() {
@@ -795,7 +800,11 @@ fn run() -> anyhow::Result<()> {
         winmenu::set_dark_menus(main.global::<Theme>().get_dark());
         // Restore its last normal position before maximizing, once drawn.
         let w = main.as_weak();
+        #[cfg(windows)]
+        let drop_ctx = ctx.clone();
         winfx::place_main(main.as_weak(), mgr.settings().main_position, move || {
+            #[cfg(windows)]
+            drop_links::install(&drop_ctx);
             if was_maximized {
                 if let Some(m) = w.upgrade() {
                     m.window().set_maximized(true);
@@ -834,6 +843,9 @@ fn run() -> anyhow::Result<()> {
         });
     }
     slint::run_event_loop_until_quit()?;
+    if mini.window().is_visible() {
+        mini_monitor::remember_position(&mgr, mini.window());
+    }
     remember_main_position(&mgr, main.window());
     note("closed");
     preview::clean_all();
@@ -1585,7 +1597,13 @@ pub(crate) fn bring_to_front(ctx: &Ctx) {
         }
         let _ = w.show();
         if !was_open {
-            winfx::place_main(w.as_weak(), ctx.mgr.settings().main_position, || {});
+            let restored_ctx = ctx.clone();
+            winfx::place_main(w.as_weak(), ctx.mgr.settings().main_position, move || {
+                #[cfg(windows)]
+                drop_links::install(&restored_ctx);
+                #[cfg(not(windows))]
+                let _ = restored_ctx;
+            });
         }
         to_front!(w);
     }
@@ -1905,7 +1923,7 @@ pub(crate) fn open_add_dialog(ctx: &Ctx, url: String, headers: RequestHeaders, n
         .map(|n| filename::sanitize(&n))
         .or_else(|| filename::from_url(&url).map(|n| filename::sanitize(&n)))
         .unwrap_or_else(|| "download".into());
-    let path = show_name_in_dialog(ctx, &d, &name, &url);
+    let path = show_name_in_dialog(ctx, &d, &name, extra.source_page.as_deref().unwrap_or(&url));
     let login = headers.auth.clone().or_else(|| s.login_for(&url));
     {
         let mut st = ctx.add_state.lock_ok();
@@ -2035,8 +2053,9 @@ fn start_probe(ctx: &Ctx, url: String) {
             match result {
                 Ok(p) => {
                     if d.get_save_as().as_str() == st.auto_path && !st.auto_path.is_empty() {
+                        let source = st.extra.source_page.clone().unwrap_or_else(|| url.clone());
                         drop(st);
-                        let path = show_name_in_dialog(&ctx2, &d, &p.file_name, &url);
+                        let path = show_name_in_dialog(&ctx2, &d, &p.file_name, &source);
                         st = ctx2.add_state.lock_ok();
                         st.auto_path = path;
                     }

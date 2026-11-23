@@ -442,25 +442,8 @@ pub(super) fn wire_main(ui: &Ui) {
         let ui = ui.clone();
         main.on_browsers(move || browser::open(&ui));
     }
-    let (tools_client, tools_rt) = (mgr.client(), ui.ctx.rt.clone());
-    let tools_busy = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
-    main.on_update_tools(move || {
-        use std::sync::atomic::Ordering;
-        if tools_busy.swap(true, Ordering::SeqCst) { return; }
-        let busy = tools_busy.clone();
-        let client = tools_client.clone();
-        tools_rt.spawn(async move {
-            let result = swiftget_engine::tools::update_all(client).await;
-            busy.store(false, Ordering::SeqCst);
-            let _ = slint::invoke_from_event_loop(move || {
-                let text = match result {
-                    Ok(out) => tf("Moo Downloader {}\n\nThe video downloader (yt-dlp) is up to date.\n\n{}", &[&env!("CARGO_PKG_VERSION"), &out]),
-                    Err(e) => tf("Could not update yt-dlp:\n\n{}", &[&format!("{e:#}")]),
-                };
-                message(&text);
-            });
-        });
-    });
+    let update_ctx = ui.ctx.clone();
+    main.on_update_tools(move || video_updates::install(&update_ctx));
     {
         let ui2 = ui.clone();
         main.on_check_app_update(move || update::check_now(&ui2));

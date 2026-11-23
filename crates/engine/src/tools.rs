@@ -1,4 +1,4 @@
-//! Bundled helpers. Network access is allowed only from the manual update action.
+//! Bundled helpers. Update checks are read-only; installing requires consent.
 //! FFmpeg is bundled with each application release; missing files require repair.
 
 use crate::http::SendOrdered;
@@ -7,6 +7,7 @@ use std::path::{Path, PathBuf};
 const YTDLP_URL: &str = "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe";
 /// the SHA-256 of every file of that release, published by yt-dlp
 const YTDLP_SUMS_URL: &str = "https://github.com/yt-dlp/yt-dlp/releases/latest/download/SHA2-256SUMS";
+const YTDLP_RELEASE_URL: &str = "https://api.github.com/repos/yt-dlp/yt-dlp/releases/latest";
 /// none of the helpers is anywhere near this big
 const MAX_TOOL_BYTES: u64 = 400 << 20;
 
@@ -72,6 +73,34 @@ pub fn sum_for(list: &str, name: &str) -> Option<String> {
         (file.trim_start_matches('*') == name && sum.len() == 64 && sum.chars().all(|c| c.is_ascii_hexdigit()))
             .then(|| sum.to_ascii_lowercase())
     })
+}
+
+/// Compare stable release versions (YYYY.MM.DD, optionally with a revision).
+/// Unknown/nightly versions are left alone instead of suggesting a downgrade.
+fn stable_version(version: &str) -> Option<Vec<u32>> {
+    let version = version.trim().strip_prefix('v').unwrap_or(version.trim());
+    let parts: Vec<_> = version.split('.').collect();
+    if !(3..=4).contains(&parts.len()) || parts[0].len() != 4 || parts.iter().any(|s| s.is_empty() || !s.bytes().all(|c| c.is_ascii_digit())) {
+        return None;
+    }
+    parts.into_iter().map(|s| s.parse().ok()).collect()
+}
+
+/// Fetch release metadata and compare it to the installed version, without
+/// downloading or replacing any executable.
+pub async fn video_update_available(client: reqwest::Client) -> anyhow::Result<Option<(String, String)>> {
+    let Some(current) = tokio::task::spawn_blocking(crate::ytdlp::installed_version).await?? else { return Ok(None) };
+    let Some(current_parts) = stable_version(&current) else { return Ok(None) };
+    let response = client.get(YTDLP_RELEASE_URL)
+        .header(reqwest::header::USER_AGENT, crate::config::DEFAULT_USER_AGENT)
+        .timeout(std::time::Duration::from_secs(15))
+        .send_ordered().await?.error_for_status()?;
+    let text = response.text().await?;
+    anyhow::ensure!(text.len() <= 1 << 20, "unexpected release response");
+    let body: serde_json::Value = serde_json::from_str(&text)?;
+    let latest = body.get("tag_name").and_then(|v| v.as_str()).unwrap_or("");
+    let Some(latest_parts) = stable_version(latest) else { return Ok(None) };
+    Ok((latest_parts > current_parts).then(|| (current, latest.to_string())))
 }
 
 async fn get_text(client: &reqwest::Client, url: &str) -> anyhow::Result<String> {
@@ -161,6 +190,14 @@ pub async fn update_all(client: reqwest::Client) -> anyhow::Result<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn compares_stable_versions_without_downgrading_nightly() {
+        assert!(stable_version("2026.11.23") > stable_version("2026.9.1"));
+        assert_eq!(stable_version("v2026.11.23"), stable_version("2026.11.23"));
+        assert!(stable_version("2026.11.23.1") > stable_version("2026.11.23"));
+        assert!(stable_version("2026.11.23.123456.dev0").is_none());
+        assert!(stable_version("garbage").is_none());
+    }
     #[test]
     fn replace_a_tool() {
         let dir = std::env::temp_dir().join(format!("ezoo-tools-test-{}", std::process::id()));

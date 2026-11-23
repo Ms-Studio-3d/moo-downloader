@@ -421,7 +421,7 @@ impl Manager {
         };
         let category = match torrent_info.as_ref().and_then(|i| i.files.iter().max_by_key(|f| f.size)) {
             Some(big) => settings.category_of(&big.path, ""),
-            None => settings.category_of(&wanted, &req.url),
+            None => settings.category_of(&wanted, req.source_page.as_deref().unwrap_or(&req.url)),
         };
         let queue_folder = req
             .queue
@@ -534,7 +534,7 @@ impl Manager {
         let mut rec = rec;
         if early {
             // parts get a fixed name in a fixed folder: name and folder can still change
-            rec.work_stem = Some(format!(".ezoo-{id}"));
+            rec.work_stem = Some(format!(".moo-{id}"));
             if rec.temp_dir.is_none() {
                 rec.temp_dir = Some(rec.save_dir.clone());
             }
@@ -804,7 +804,7 @@ impl Manager {
             if let Some(n) = new_path.file_name() {
                 e.rec.file_name = n.to_string_lossy().into_owned();
             }
-            e.rec.category = self.settings.read_ok().category_of(&e.rec.file_name, &e.rec.url);
+            e.rec.category = self.settings.read_ok().category_of(&e.rec.file_name, e.rec.source_page.as_deref().unwrap_or(&e.rec.url));
         }
         inner.dirty = true;
         Ok(())
@@ -817,7 +817,7 @@ impl Manager {
         let names = s.category_names();
         let mut inner = self.inner.lock_ok();
         for e in inner.entries.values_mut() {
-            let wanted = s.category_of(&e.rec.file_name, &e.rec.url);
+            let wanted = s.category_of(&e.rec.file_name, e.rec.source_page.as_deref().unwrap_or(&e.rec.url));
             if !names.contains(&e.rec.category) || wanted != "General" {
                 e.rec.category = wanted;
             }
@@ -998,7 +998,7 @@ impl Manager {
                     first_stem = e.rec.temp_stem();
                     e.rec.save_dir = dir.to_path_buf();
                     e.rec.file_name = name;
-                    e.rec.category = self.settings.read_ok().category_of(&e.rec.file_name, &e.rec.url);
+                    e.rec.category = self.settings.read_ok().category_of(&e.rec.file_name, e.rec.source_page.as_deref().unwrap_or(&e.rec.url));
                     if e.rec.work_stem.is_some() && !own_temp {
                         e.rec.temp_dir = Some(dir.to_path_buf());
                     }
@@ -1242,6 +1242,11 @@ impl Manager {
     pub fn snapshot(&self) -> Vec<DownloadView> {
         let inner = self.inner.lock_ok();
         inner.entries.values().map(|e| view_of(e, false)).collect()
+    }
+
+    /// Only clone rows shown by the floating monitor, irrespective of history size.
+    pub fn running_downloads(&self) -> Vec<DownloadView> {
+        self.inner.lock_ok().entries.values().filter(|e| e.rec.status.is_running()).map(|e| view_of(e, false)).collect()
     }
 
     /// One download (cheap: used many times a second by progress windows).
@@ -1828,7 +1833,7 @@ impl Manager {
         // added without a name (batch, clipboard): use the server's real name
         // and the matching category folder before the first byte is written
         if rec.auto_name && segs.lock_ok().is_empty() && rec.downloaded == 0 && p.file_name != rec.file_name {
-            let new_cat = settings.category_of(&p.file_name, &rec.url);
+            let new_cat = settings.category_of(&p.file_name, rec.source_page.as_deref().unwrap_or(&rec.url));
             let dir = if rec.save_dir == settings.dir_for(&rec.category) {
                 settings.dir_for(&new_cat)
             } else {

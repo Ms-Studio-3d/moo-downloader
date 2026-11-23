@@ -10,7 +10,7 @@ sys.path.insert(0, here)
 from ar_ui import AR
 
 texts = []
-for f in ["common.slint", "app.slint", "dialogs.slint"]:
+for f in sorted(name for name in os.listdir(os.path.join(here, "..", "ui")) if name.endswith(".slint")):
     src = open(os.path.join(here, "..", "ui", f), encoding="utf-8").read()
     for m in re.finditer(r'@tr\("((?:[^"\\]|\\.)*)"', src):
         if m.group(1) not in texts:

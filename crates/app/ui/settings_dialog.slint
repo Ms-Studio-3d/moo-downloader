@@ -1,0 +1,1195 @@
+import { Button, LineEdit, SpinBox, ComboBox, TextEdit, Slider } from "std-widgets.slint";
+import { PairRow, Theme, ThemedWindow, HRow, CheckBox } from "common.slint";
+import { Label, Hint, Section, Radio, SideTab, PairList } from "dialog_controls.slint";
+
+// ------------------------------------------------------------------ Options
+
+component SoundRow inherits HRow {
+    in property <string> label;
+    in-out property <string> path;
+    callback browse();
+    callback play();
+    spacing: 6px;
+    Label {
+        text: root.label;
+        width: 150px;
+    }
+    LineEdit {
+        text <=> root.path;
+        horizontal-stretch: 1;
+    }
+    Button {
+        text: "…";
+        clicked => {
+            root.browse();
+        }
+    }
+    Button {
+        text: @tr("Play");
+        clicked => {
+            root.play();
+        }
+    }
+}
+
+export component SettingsDialog inherits ThemedWindow {
+    // set for a moment so the window comes in front of the browser
+    in property <bool> front;
+    always-on-top: root.front;
+    title: @tr("Moo Downloader – Options");
+    preferred-width: 820px;
+    preferred-height: 600px;
+
+    in-out property <int> tab: 0;
+    // General
+    in-out property <int> language;
+    in-out property <int> theme;
+    // how solid the main window is, 50..100 %
+    in-out property <float> window-opacity: 100;
+    // called while the slider moves, so the window shows it at once
+    callback preview-opacity(float);
+    // text size (percent) and font of every window
+    in-out property <float> text-size: 100;
+    in-out property <int> font-index;
+    // a picture behind the main window instead of the theme's color
+    in-out property <string> bg-image;
+    in-out property <float> bg-strength: 45;
+    callback browse-bg();
+    // the look changed: show it at once (the settings are kept on OK)
+    callback preview-look();
+    in-out property <bool> start-with-windows;
+    in-out property <bool> close-to-tray;
+    in-out property <bool> gpu-drawing;
+    in-out property <bool> clipboard;
+    in-out property <bool> auto-clipboard;
+    in-out property <int> double-click;
+    in-out property <bool> show-tips;
+    in-out property <int> port;
+    in-out property <int> skip-key;
+    in-out property <int> force-key;
+    in property <string> extension-path;
+    // File types
+    in-out property <string> capture-exts;
+    in-out property <string> skip-sites;
+    in-out property <string> skip-addresses;
+    in-out property <bool> panel-enabled;
+    in-out property <string> panel-skip-sites;
+    in-out property <int> panel-min-video;
+    in-out property <int> panel-min-audio;
+    // Save To
+    in-out property <string> download-dir;
+    in-out property <bool> category-folders;
+    in-out property <string> temp-dir;
+    // Downloads
+    in-out property <bool> show-start-dialog;
+    in-out property <bool> start-while-info;
+    in-out property <bool> complete-dialog;
+    in-out property <bool> complete-each;
+    in-out property <bool> ask-remove: true;
+    // 0 128k, 1 192k, 2 256k, 3 320k
+    in-out property <int> mp3-index: 1;
+    in-out property <bool> subtitles;
+    in-out property <string> subtitle-langs;
+    in-out property <int> progress-mode;
+    in-out property <int> duplicate-action;
+    in-out property <bool> set-file-date;
+    in-out property <bool> virus-scan;
+    in-out property <string> virus-program;
+    in-out property <string> virus-args;
+    in-out property <string> user-agent;
+    // Connection
+    in-out property <int> connection-type;
+    in-out property <int> connections;
+    in-out property <int> max-active;
+    in-out property <int> retries;
+    in property <[PairRow]> server-rows;
+    in-out property <int> server-current: -1;
+    in-out property <string> server-host;
+    in-out property <int> server-conns: 2;
+    in-out property <bool> quota-on;
+    in-out property <int> quota-mb;
+    in-out property <int> quota-hours;
+    in property <string> quota-used;
+    // Proxy
+    in-out property <int> proxy-mode;
+    in-out property <string> proxy-host;
+    in-out property <int> proxy-port;
+    in-out property <string> proxy-user;
+    in-out property <string> proxy-password;
+    in-out property <string> proxy-bypass;
+    // Site logins
+    in property <[PairRow]> login-rows;
+    in-out property <int> login-current: -1;
+    in-out property <string> login-site;
+    in-out property <string> login-user;
+    in-out property <string> login-password;
+    // Sounds
+    in-out property <bool> sounds-on;
+    in-out property <string> sound-complete;
+    in-out property <string> sound-failed;
+    in-out property <string> sound-qstart;
+    in-out property <string> sound-qdone;
+    // Speed limiter
+    in-out property <bool> limiter-on;
+    in-out property <bool> limit-only-active;
+    in-out property <int> speed-limit;
+    in-out property <bool> limiter-startup;
+    // Torrents tab
+    in-out property <int> seed-minutes;
+    in-out property <int> seed-ratio;
+    in-out property <int> torrent-upload;
+    in-out property <bool> torrent-main;
+    in property <string> message;
+
+    callback browse(string);
+    callback play(string);
+    callback reset-paths();
+    callback default-exts();
+    callback server-add();
+    callback server-remove();
+    callback login-add();
+    callback login-remove();
+    callback login-pick(int);
+    callback open-extension-folder();
+    callback save();
+    callback cancel();
+
+    VerticalLayout {
+        padding: 10px;
+        spacing: 8px;
+        HRow {
+            vertical-stretch: 1;
+            spacing: 8px;
+            Rectangle {
+                width: 150px;
+                background: Theme.panel;
+                border-width: 1px;
+                border-color: Theme.line;
+                VerticalLayout {
+                    padding: 3px;
+                    alignment: start;
+                    for t[i] in [@tr("General"), @tr("File Types"), @tr("Save To"), @tr("Downloads"), @tr("Connection"), @tr("Proxy / Server"), @tr("Site Logins"), @tr("Sounds"), @tr("Speed Limiter"), @tr("Appearance"), @tr("Torrents")]: SideTab {
+                        text: t;
+                        active: root.tab == i;
+                        clicked => {
+                            root.tab = i;
+                        }
+                    }
+                }
+            }
+            Rectangle {
+                horizontal-stretch: 1;
+                background: Theme.panel;
+                border-width: 1px;
+                border-color: Theme.line;
+
+                // ---------------- Appearance
+                if root.tab == 9: VerticalLayout {
+                    padding: 14px;
+                    spacing: 10px;
+                    alignment: start;
+                    HRow {
+                        spacing: 8px;
+                        Label {
+                            text: @tr("Theme");
+                        }
+                        ComboBox {
+                            width: 200px;
+                            model: [@tr("Light"), @tr("Dark"), @tr("Ocean blue"), @tr("Midnight purple"), @tr("Forest green"), @tr("Black"), @tr("Sunset"), @tr("Teal night"), @tr("Rose"), @tr("3D"), @tr("Aurora glass"), @tr("Soft clay"), @tr("Cyber neon")];
+                            current-index <=> root.theme;
+                        }
+                        Rectangle {
+                            horizontal-stretch: 1;
+                        }
+                    }
+                    HRow {
+                        spacing: 8px;
+                        Label {
+                            text: @tr("Window opacity");
+                        }
+                        Slider {
+                            width: 200px;
+                            minimum: 50;
+                            maximum: 100;
+                            value <=> root.window-opacity;
+                            changed(v) => {
+                                root.preview-opacity(v);
+                            }
+                        }
+                        Label {
+                            text: Math.round(root.window-opacity) + "%";
+                        }
+                        Rectangle {
+                            horizontal-stretch: 1;
+                        }
+                    }
+                    HRow {
+                        spacing: 8px;
+                        Label {
+                            text: @tr("Text size");
+                        }
+                        Slider {
+                            width: 200px;
+                            minimum: 80;
+                            maximum: 150;
+                            value <=> root.text-size;
+                            changed(v) => {
+                                root.preview-look();
+                            }
+                        }
+                        Label {
+                            text: Math.round(root.text-size) + "%";
+                        }
+                        Rectangle {
+                            horizontal-stretch: 1;
+                        }
+                    }
+                    HRow {
+                        spacing: 8px;
+                        Label {
+                            text: @tr("Font");
+                        }
+                        ComboBox {
+                            width: 200px;
+                            model: [@tr("Default (Segoe UI)"), "Tahoma", "Arial", "Calibri", "Verdana", "Times New Roman", "Courier New"];
+                            current-index <=> root.font-index;
+                            selected => {
+                                root.preview-look();
+                            }
+                        }
+                        Rectangle {
+                            horizontal-stretch: 1;
+                        }
+                    }
+                    HRow {
+                        spacing: 8px;
+                        Label {
+                            text: @tr("Background picture");
+                        }
+                        LineEdit {
+                            horizontal-stretch: 1;
+                            read-only: true;
+                            placeholder-text: @tr("none (the theme's colors)");
+                            text: root.bg-image;
+                        }
+                        Button {
+                            text: @tr("Browse…");
+                            clicked => {
+                                root.browse-bg();
+                            }
+                        }
+                        Button {
+                            text: @tr("Remove");
+                            enabled: root.bg-image != "";
+                            clicked => {
+                                root.bg-image = "";
+                                root.preview-look();
+                            }
+                        }
+                    }
+                    if root.bg-image != "": HRow {
+                        spacing: 8px;
+                        Label {
+                            text: @tr("Picture visibility");
+                        }
+                        Slider {
+                            width: 200px;
+                            minimum: 10;
+                            maximum: 80;
+                            value <=> root.bg-strength;
+                            changed(v) => {
+                                root.preview-look();
+                            }
+                        }
+                        Label {
+                            text: Math.round(root.bg-strength) + "%";
+                        }
+                        Rectangle {
+                            horizontal-stretch: 1;
+                        }
+                    }
+                }
+
+                // ---------------- General
+                if root.tab == 0: VerticalLayout {
+                    padding: 14px;
+                    spacing: 8px;
+                    alignment: start;
+                    HRow {
+                        spacing: 8px;
+                        Label {
+                            text: @tr("Language");
+                        }
+                        ComboBox {
+                            width: 200px;
+                            model: ["English", "العربية", "Français", "Español", "Deutsch", "Português", "Türkçe", "Русский"];
+                            current-index <=> root.language;
+                        }
+                        Rectangle {
+                            horizontal-stretch: 1;
+                        }
+                    }
+                    CheckBox {
+                        text: @tr("Launch Moo Downloader on Windows startup");
+                        checked <=> root.start-with-windows;
+                    }
+                    CheckBox {
+                        text: @tr("Keep running next to the clock when the window is closed");
+                        checked <=> root.close-to-tray;
+                    }
+                    CheckBox {
+                        text: @tr("Watch the clipboard for download links");
+                        checked <=> root.clipboard;
+                    }
+                    CheckBox {
+                        text: @tr("Automatically start downloading links placed in the clipboard");
+                        checked <=> root.auto-clipboard;
+                        enabled: root.clipboard;
+                    }
+                    CheckBox {
+                        text: @tr("Draw the windows with the graphics card (uses more memory; after a restart)");
+                        checked <=> root.gpu-drawing;
+                    }
+                    CheckBox {
+                        text: @tr("Show \"Tip of the day\" at startup");
+                        checked <=> root.show-tips;
+                    }
+                    HRow {
+                        spacing: 8px;
+                        Label {
+                            text: @tr("On double click on a download");
+                        }
+                        ComboBox {
+                            width: 230px;
+                            model: [@tr("Open the file / progress window"), @tr("Show properties")];
+                            current-index <=> root.double-click;
+                        }
+                        Rectangle {
+                            horizontal-stretch: 1;
+                        }
+                    }
+                    Rectangle {
+                        height: 1px;
+                        background: Theme.grid;
+                    }
+                    Section {
+                        text: @tr("Browser integration");
+                    }
+                    Hint {
+                        text: @tr("Chrome and Edge: load the \"extension\" folder in chrome://extensions (Developer mode > Load unpacked). Downloads, videos and the right click menu then go to Moo Downloader.");
+                    }
+                    HRow {
+                        spacing: 8px;
+                        Button {
+                            text: @tr("Add Moo Downloader to my browser…");
+                            clicked => {
+                                root.open-extension-folder();
+                            }
+                        }
+                        Rectangle {
+                            horizontal-stretch: 1;
+                        }
+                    }
+                    HRow {
+                        spacing: 8px;
+                        Label {
+                            text: @tr("Hold this key to let the browser download by itself");
+                        }
+                        ComboBox {
+                            width: 100px;
+                            model: [@tr("Alt"), @tr("Ctrl"), @tr("Shift"), @tr("None")];
+                            current-index <=> root.skip-key;
+                        }
+                        Rectangle {
+                            horizontal-stretch: 1;
+                        }
+                    }
+                    HRow {
+                        spacing: 8px;
+                        Label {
+                            text: @tr("Hold this key to force Moo Downloader to take a link");
+                        }
+                        ComboBox {
+                            width: 100px;
+                            model: [@tr("Alt"), @tr("Ctrl"), @tr("Shift"), @tr("None")];
+                            current-index <=> root.force-key;
+                        }
+                        Rectangle {
+                            horizontal-stretch: 1;
+                        }
+                    }
+                    HRow {
+                        spacing: 8px;
+                        Label {
+                            text: @tr("Browser extension port");
+                        }
+                        SpinBox {
+                            minimum: 1024;
+                            maximum: 65535;
+                            value <=> root.port;
+                        }
+                        Rectangle {
+                            horizontal-stretch: 1;
+                        }
+                    }
+                }
+
+                // ---------------- File Types
+                if root.tab == 1: VerticalLayout {
+                    padding: 14px;
+                    spacing: 8px;
+                    Label {
+                        text: @tr("Automatically start downloading these file types (from the browser):");
+                    }
+                    TextEdit {
+                        text <=> root.capture-exts;
+                        min-height: 80px;
+                        font-size: 12px * Theme.font-scale;
+                        wrap: word-wrap;
+                    }
+                    HRow {
+                        alignment: end;
+                        Button {
+                            text: @tr("Default");
+                            clicked => {
+                                root.default-exts();
+                            }
+                        }
+                    }
+                    Label {
+                        text: @tr("Don't start downloading automatically from these sites:");
+                    }
+                    LineEdit {
+                        text <=> root.skip-sites;
+                        placeholder-text: @tr("*.update.microsoft.com  windowsupdate.com");
+                    }
+                    Label {
+                        text: @tr("Don't start downloading these addresses (one per line, * allowed):");
+                    }
+                    TextEdit {
+                        text <=> root.skip-addresses;
+                        min-height: 60px;
+                        font-size: 12px * Theme.font-scale;
+                    }
+                    Rectangle {
+                        height: 1px;
+                        background: Theme.grid;
+                    }
+                    CheckBox {
+                        text: @tr("Show the \"Download this video\" panel on web players");
+                        checked <=> root.panel-enabled;
+                    }
+                    HRow {
+                        spacing: 8px;
+                        Label {
+                            text: @tr("Don't show it on these sites");
+                        }
+                        LineEdit {
+                            text <=> root.panel-skip-sites;
+                            enabled: root.panel-enabled;
+                            horizontal-stretch: 1;
+                        }
+                    }
+                    HRow {
+                        spacing: 8px;
+                        Label {
+                            text: @tr("Smallest video (KB)");
+                        }
+                        SpinBox {
+                            width: 110px;
+                            minimum: 0;
+                            maximum: 100000;
+                            value <=> root.panel-min-video;
+                            enabled: root.panel-enabled;
+                        }
+                        Label {
+                            text: @tr("Smallest audio (KB)");
+                        }
+                        SpinBox {
+                            width: 110px;
+                            minimum: 0;
+                            maximum: 100000;
+                            value <=> root.panel-min-audio;
+                            enabled: root.panel-enabled;
+                        }
+                        Rectangle {
+                            horizontal-stretch: 1;
+                        }
+                    }
+                }
+
+                // ---------------- Save To
+                if root.tab == 2: VerticalLayout {
+                    padding: 14px;
+                    spacing: 8px;
+                    alignment: start;
+                    Label {
+                        text: @tr("Main download folder");
+                    }
+                    HRow {
+                        spacing: 6px;
+                        LineEdit {
+                            text <=> root.download-dir;
+                            horizontal-stretch: 1;
+                        }
+                        Button {
+                            text: @tr("Browse…");
+                            clicked => {
+                                root.browse("download");
+                            }
+                        }
+                    }
+                    CheckBox {
+                        text: @tr("Sort files into folders by category (Video, Music, Programs, Compressed, Documents, Images…)");
+                        checked <=> root.category-folders;
+                    }
+                    Hint {
+                        text: @tr("Each category's own folder and file types: right click it in the sidebar > Properties.");
+                    }
+                    Button {
+                        text: @tr("Forget remembered category paths");
+                        clicked => {
+                            root.reset-paths();
+                        }
+                    }
+                    Rectangle {
+                        height: 1px;
+                        background: Theme.grid;
+                    }
+                    Label {
+                        text: @tr("Temporary folder (parts while downloading)");
+                    }
+                    HRow {
+                        spacing: 6px;
+                        LineEdit {
+                            text <=> root.temp-dir;
+                            horizontal-stretch: 1;
+                        }
+                        Button {
+                            text: @tr("Browse…");
+                            clicked => {
+                                root.browse("temp");
+                            }
+                        }
+                    }
+                    Hint {
+                        text: @tr("Tip: a temporary folder on another drive than the download folder makes joining the parts faster.");
+                    }
+                }
+
+                // ---------------- Downloads
+                if root.tab == 3: VerticalLayout {
+                    padding: 14px;
+                    spacing: 8px;
+                    alignment: start;
+                    CheckBox {
+                        text: @tr("Show the \"Download File Info\" window for downloads from the browser");
+                        checked <=> root.show-start-dialog;
+                    }
+                    CheckBox {
+                        text: @tr("Start downloading immediately while showing \"Download File Info\"");
+                        checked <=> root.start-while-info;
+                    }
+                    CheckBox {
+                        text: @tr("Show the \"Download complete\" window");
+                        checked <=> root.complete-dialog;
+                    }
+                    CheckBox {
+                        enabled: root.complete-dialog;
+                        text: @tr("For a playlist or several files added together: one window for each file (not one at the end)");
+                        checked <=> root.complete-each;
+                    }
+                    CheckBox {
+                        text: @tr("Ask before removing downloads from the list");
+                        checked <=> root.ask-remove;
+                    }
+                    HRow {
+                        spacing: 8px;
+                        Label {
+                            text: @tr("Quality of MP3 files");
+                        }
+                        ComboBox {
+                            width: 160px;
+                            model: ["128 kbps", "192 kbps", "256 kbps", "320 kbps"];
+                            current-index <=> root.mp3-index;
+                        }
+                        Rectangle {
+                            horizontal-stretch: 1;
+                        }
+                    }
+                    HRow {
+                        spacing: 8px;
+                        CheckBox {
+                            text: @tr("Download the subtitles of videos too, in these languages:");
+                            checked <=> root.subtitles;
+                        }
+                        LineEdit {
+                            width: 120px;
+                            enabled: root.subtitles;
+                            text <=> root.subtitle-langs;
+                            placeholder-text: "ar en";
+                        }
+                        Rectangle {
+                            horizontal-stretch: 1;
+                        }
+                    }
+                    HRow {
+                        spacing: 8px;
+                        Label {
+                            text: @tr("Show the download progress window");
+                        }
+                        ComboBox {
+                            width: 160px;
+                            model: [@tr("Normally"), @tr("Minimized"), @tr("Don't show")];
+                            current-index <=> root.progress-mode;
+                        }
+                        Rectangle {
+                            horizontal-stretch: 1;
+                        }
+                    }
+                    HRow {
+                        spacing: 8px;
+                        Label {
+                            text: @tr("If a duplicate link is added");
+                        }
+                        ComboBox {
+                            width: 330px;
+                            model: [@tr("Ask me"), @tr("Add it with a numbered file name"), @tr("Add it and replace the old download"), @tr("Show the finished one / resume the unfinished one")];
+                            current-index <=> root.duplicate-action;
+                        }
+                        Rectangle {
+                            horizontal-stretch: 1;
+                        }
+                    }
+                    CheckBox {
+                        text: @tr("Give finished files the date from the server");
+                        checked <=> root.set-file-date;
+                    }
+                    Rectangle {
+                        height: 1px;
+                        background: Theme.grid;
+                    }
+                    CheckBox {
+                        text: @tr("Check every finished file for viruses with this program");
+                        checked <=> root.virus-scan;
+                    }
+                    HRow {
+                        spacing: 6px;
+                        LineEdit {
+                            text <=> root.virus-program;
+                            enabled: root.virus-scan;
+                            placeholder-text: @tr("C:\\Program Files\\Windows Defender\\MpCmdRun.exe");
+                            horizontal-stretch: 1;
+                        }
+                        Button {
+                            text: "…";
+                            enabled: root.virus-scan;
+                            clicked => {
+                                root.browse("virus");
+                            }
+                        }
+                    }
+                    HRow {
+                        spacing: 8px;
+                        Label {
+                            text: @tr("Command line parameters");
+                        }
+                        LineEdit {
+                            text <=> root.virus-args;
+                            enabled: root.virus-scan;
+                            placeholder-text: @tr("-Scan -ScanType 3 -File [File]");
+                            horizontal-stretch: 1;
+                        }
+                    }
+                    Hint {
+                        text: @tr("[File] is replaced by the downloaded file.");
+                    }
+                    Rectangle {
+                        height: 1px;
+                        background: Theme.grid;
+                    }
+                    Label {
+                        text: @tr("User-Agent for downloads added by hand");
+                    }
+                    LineEdit {
+                        text <=> root.user-agent;
+                    }
+                }
+
+                // ---------------- Connection
+                if root.tab == 4: VerticalLayout {
+                    padding: 14px;
+                    spacing: 8px;
+                    GridLayout {
+                        spacing: 8px;
+                        Label {
+                            col: Theme.rtl ? 1 : 0;
+                            row: 0;
+                            text: @tr("Connection type / speed");
+                        }
+                        ComboBox {
+                            col: Theme.rtl ? 0 : 1;
+                            row: 0;
+                            model: [@tr("Low speed (modem, mobile)"), @tr("Medium speed (DSL)"), @tr("High speed (fiber, cable, LAN)")];
+                            current-index <=> root.connection-type;
+                        }
+                        Label {
+                            col: Theme.rtl ? 1 : 0;
+                            row: 1;
+                            text: @tr("Default max. connections number");
+                        }
+                        SpinBox {
+                            col: Theme.rtl ? 0 : 1;
+                            row: 1;
+                            minimum: 1;
+                            maximum: 64;
+                            value <=> root.connections;
+                        }
+                        Label {
+                            col: Theme.rtl ? 1 : 0;
+                            row: 2;
+                            text: @tr("Downloads at the same time (0 = no limit)");
+                        }
+                        SpinBox {
+                            col: Theme.rtl ? 0 : 1;
+                            row: 2;
+                            minimum: 0;
+                            maximum: 100;
+                            value <=> root.max-active;
+                        }
+                        Label {
+                            col: Theme.rtl ? 1 : 0;
+                            row: 3;
+                            text: @tr("Retries on error");
+                        }
+                        SpinBox {
+                            col: Theme.rtl ? 0 : 1;
+                            row: 3;
+                            minimum: 0;
+                            maximum: 100;
+                            value <=> root.retries;
+                        }
+                    }
+                    Section {
+                        text: @tr("Exceptions: servers with their own number of connections");
+                    }
+                    PairList {
+                        height: 110px;
+                        rows: root.server-rows;
+                        current <=> root.server-current;
+                        head-a: @tr("Server");
+                        head-b: @tr("Connections");
+                        width-b: 110px;
+                    }
+                    HRow {
+                        spacing: 6px;
+                        LineEdit {
+                            text <=> root.server-host;
+                            placeholder-text: @tr("example.com");
+                            horizontal-stretch: 1;
+                        }
+                        SpinBox {
+                            width: 90px;
+                            minimum: 1;
+                            maximum: 64;
+                            value <=> root.server-conns;
+                        }
+                        Button {
+                            text: @tr("Add");
+                            clicked => {
+                                root.server-add();
+                            }
+                        }
+                        Button {
+                            text: @tr("Delete");
+                            enabled: root.server-current >= 0;
+                            clicked => {
+                                root.server-remove();
+                            }
+                        }
+                    }
+                    Section {
+                        text: @tr("Download limits");
+                    }
+                    HRow {
+                        spacing: 6px;
+                        CheckBox {
+                            text: @tr("Download no more than");
+                            checked <=> root.quota-on;
+                        }
+                        SpinBox {
+                            width: 110px;
+                            minimum: 1;
+                            maximum: 10000000;
+                            value <=> root.quota-mb;
+                            enabled: root.quota-on;
+                        }
+                        Label {
+                            text: @tr("MB every");
+                        }
+                        SpinBox {
+                            width: 80px;
+                            minimum: 1;
+                            maximum: 720;
+                            value <=> root.quota-hours;
+                            enabled: root.quota-on;
+                        }
+                        Label {
+                            text: @tr("hours");
+                        }
+                        Rectangle {
+                            horizontal-stretch: 1;
+                        }
+                    }
+                    Hint {
+                        text: root.quota-used;
+                    }
+                }
+
+                // ---------------- Proxy
+                if root.tab == 5: VerticalLayout {
+                    padding: 14px;
+                    spacing: 8px;
+                    alignment: start;
+                    Radio {
+                        text: @tr("No proxy");
+                        checked: root.proxy-mode == 0;
+                        clicked => {
+                            root.proxy-mode = 0;
+                        }
+                    }
+                    Radio {
+                        text: @tr("Use the system settings (like your browser)");
+                        checked: root.proxy-mode == 1;
+                        clicked => {
+                            root.proxy-mode = 1;
+                        }
+                    }
+                    Radio {
+                        text: @tr("Manual proxy configuration (HTTP / HTTPS)");
+                        checked: root.proxy-mode == 2;
+                        clicked => {
+                            root.proxy-mode = 2;
+                        }
+                    }
+                    GridLayout {
+                        spacing: 8px;
+                        Label {
+                            col: Theme.rtl ? 1 : 0;
+                            row: 0;
+                            text: @tr("Proxy address");
+                        }
+                        HRow {
+                            col: Theme.rtl ? 0 : 1;
+                            row: 0;
+                            spacing: 6px;
+                            LineEdit {
+                                text <=> root.proxy-host;
+                                enabled: root.proxy-mode == 2;
+                                placeholder-text: @tr("proxy.example.com");
+                                horizontal-stretch: 1;
+                            }
+                            Label {
+                                text: @tr("Port");
+                            }
+                            SpinBox {
+                                width: 100px;
+                                minimum: 1;
+                                maximum: 65535;
+                                value <=> root.proxy-port;
+                                enabled: root.proxy-mode == 2;
+                            }
+                        }
+                        Label {
+                            col: Theme.rtl ? 1 : 0;
+                            row: 1;
+                            text: @tr("User name");
+                        }
+                        LineEdit {
+                            col: Theme.rtl ? 0 : 1;
+                            row: 1;
+                            text <=> root.proxy-user;
+                            enabled: root.proxy-mode == 2;
+                        }
+                        Label {
+                            col: Theme.rtl ? 1 : 0;
+                            row: 2;
+                            text: @tr("Password");
+                        }
+                        LineEdit {
+                            col: Theme.rtl ? 0 : 1;
+                            row: 2;
+                            text <=> root.proxy-password;
+                            input-type: InputType.password;
+                            enabled: root.proxy-mode == 2;
+                        }
+                        Label {
+                            col: Theme.rtl ? 1 : 0;
+                            row: 3;
+                            text: @tr("Don't use the proxy for");
+                        }
+                        LineEdit {
+                            col: Theme.rtl ? 0 : 1;
+                            row: 3;
+                            text <=> root.proxy-bypass;
+                            enabled: root.proxy-mode == 2;
+                            placeholder-text: @tr("localhost 127.0.0.1 *.local");
+                        }
+                    }
+                    Hint {
+                        text: @tr("Addresses separated by spaces. SOCKS proxies: use the system settings.");
+                    }
+                }
+
+                // ---------------- Site logins
+                if root.tab == 6: VerticalLayout {
+                    padding: 14px;
+                    spacing: 8px;
+                    Label {
+                        text: @tr("User names and passwords for sites that ask for them:");
+                    }
+                    PairList {
+                        vertical-stretch: 1;
+                        rows: root.login-rows;
+                        current <=> root.login-current;
+                        head-a: @tr("Site / path");
+                        head-b: @tr("User name");
+                        width-b: 180px;
+                        picked(i) => {
+                            root.login-pick(i);
+                        }
+                    }
+                    GridLayout {
+                        spacing: 8px;
+                        Label {
+                            col: Theme.rtl ? 1 : 0;
+                            row: 0;
+                            text: @tr("Site / path");
+                        }
+                        LineEdit {
+                            col: Theme.rtl ? 0 : 1;
+                            row: 0;
+                            text <=> root.login-site;
+                            placeholder-text: @tr("example.com/members");
+                        }
+                        Label {
+                            col: Theme.rtl ? 1 : 0;
+                            row: 1;
+                            text: @tr("User name");
+                        }
+                        LineEdit {
+                            col: Theme.rtl ? 0 : 1;
+                            row: 1;
+                            text <=> root.login-user;
+                        }
+                        Label {
+                            col: Theme.rtl ? 1 : 0;
+                            row: 2;
+                            text: @tr("Password");
+                        }
+                        LineEdit {
+                            col: Theme.rtl ? 0 : 1;
+                            row: 2;
+                            text <=> root.login-password;
+                            input-type: InputType.password;
+                        }
+                    }
+                    HRow {
+                        spacing: 6px;
+                        alignment: end;
+                        Button {
+                            text: @tr("Add / Update");
+                            clicked => {
+                                root.login-add();
+                            }
+                        }
+                        Button {
+                            text: @tr("Remove");
+                            enabled: root.login-current >= 0;
+                            clicked => {
+                                root.login-remove();
+                            }
+                        }
+                    }
+                    Hint {
+                        text: @tr("Saved in the settings file of your Windows user account.");
+                    }
+                }
+
+                // ---------------- Sounds
+                if root.tab == 7: VerticalLayout {
+                    padding: 14px;
+                    spacing: 10px;
+                    alignment: start;
+                    CheckBox {
+                        text: @tr("Play sounds");
+                        checked <=> root.sounds-on;
+                    }
+                    SoundRow {
+                        label: @tr("Download complete");
+                        path <=> root.sound-complete;
+                        browse => {
+                            root.browse("sound:complete");
+                        }
+                        play => {
+                            root.play("complete");
+                        }
+                    }
+                    SoundRow {
+                        label: @tr("Download failed");
+                        path <=> root.sound-failed;
+                        browse => {
+                            root.browse("sound:failed");
+                        }
+                        play => {
+                            root.play("failed");
+                        }
+                    }
+                    SoundRow {
+                        label: @tr("Queue started");
+                        path <=> root.sound-qstart;
+                        browse => {
+                            root.browse("sound:qstart");
+                        }
+                        play => {
+                            root.play("qstart");
+                        }
+                    }
+                    SoundRow {
+                        label: @tr("Queue finished");
+                        path <=> root.sound-qdone;
+                        browse => {
+                            root.browse("sound:qdone");
+                        }
+                        play => {
+                            root.play("qdone");
+                        }
+                    }
+                    Hint {
+                        text: @tr(".wav files. Empty = no sound for that event.");
+                    }
+                }
+
+                // ---------------- Speed limiter
+                if root.tab == 8: VerticalLayout {
+                    padding: 14px;
+                    spacing: 10px;
+                    alignment: start;
+                    CheckBox {
+                        text: @tr("Turn the speed limiter on");
+                        checked <=> root.limiter-on;
+                    }
+                    HRow {
+                        spacing: 8px;
+                        Label {
+                            text: @tr("Maximum download speed (KB/s)");
+                        }
+                        SpinBox {
+                            minimum: 1;
+                            maximum: 1000000;
+                            value <=> root.speed-limit;
+                        }
+                        Rectangle {
+                            horizontal-stretch: 1;
+                        }
+                    }
+                    CheckBox {
+                        text: @tr("Always turn on the speed limiter when Moo Downloader starts");
+                        checked <=> root.limiter-startup;
+                    }
+                    CheckBox {
+                        text: @tr("Limit only while I use the computer (full speed after a minute without the mouse or keyboard)");
+                        checked <=> root.limit-only-active;
+                    }
+                    Hint {
+                        text: @tr("Every download can also have its own limit: its progress window > Speed Limiter tab.");
+                    }
+                }
+                if root.tab == 10: VerticalLayout {
+                    padding: 14px;
+                    spacing: 10px;
+                    alignment: start;
+                    CheckBox {
+                        text: @tr("Make Moo Downloader the main program for torrents");
+                        checked <=> root.torrent-main;
+                    }
+                    Hint {
+                        text: @tr("On: magnet links and .torrent files open in Moo Downloader, from the browser and from Windows. Off: they stay with the browser and your own torrent program.");
+                    }
+                    HRow {
+                        spacing: 8px;
+                        Label {
+                            text: @tr("Keep sharing a finished torrent for (minutes)");
+                        }
+                        SpinBox {
+                            minimum: 0;
+                            maximum: 10080;
+                            value <=> root.seed-minutes;
+                        }
+                        Rectangle {
+                            horizontal-stretch: 1;
+                        }
+                    }
+                    Hint {
+                        text: @tr("0 = stop as soon as all files are here. Sharing longer helps the others who download the same torrent.");
+                    }
+                    HRow {
+                        spacing: 8px;
+                        Label {
+                            text: @tr("Stop sharing once it sent (times what it received)");
+                        }
+                        ComboBox {
+                            width: 110px;
+                            model: [@tr("No limit"), "0.5", "1", "1.5", "2", "3", "5"];
+                            current-index <=> root.seed-ratio;
+                        }
+                        Rectangle {
+                            horizontal-stretch: 1;
+                        }
+                    }
+                    HRow {
+                        spacing: 8px;
+                        Label {
+                            text: @tr("Maximum upload speed (KB/s, 0 = no limit)");
+                        }
+                        SpinBox {
+                            minimum: 0;
+                            maximum: 1000000;
+                            value <=> root.torrent-upload;
+                        }
+                        Rectangle {
+                            horizontal-stretch: 1;
+                        }
+                    }
+                    Hint {
+                        text: @tr("While a torrent downloads it also sends pieces to others (that is how torrents work). A limit keeps your internet free for other things.");
+                    }
+                }
+            }
+        }
+        HRow {
+            alignment: end;
+            spacing: 8px;
+            Text {
+                horizontal-alignment: Theme.rtl ? TextHorizontalAlignment.right : TextHorizontalAlignment.left;
+                text: root.message;
+                color: Theme.err;
+                vertical-alignment: center;
+                horizontal-stretch: 1;
+            }
+            Button {
+                text: @tr("OK");
+                primary: true;
+                clicked => {
+                    root.save();
+                }
+            }
+            Button {
+                text: @tr("Cancel");
+                clicked => {
+                    root.cancel();
+                }
+            }
+        }
+    }
+}

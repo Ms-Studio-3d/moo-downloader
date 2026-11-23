@@ -1,0 +1,792 @@
+import { Button, LineEdit, SpinBox, ComboBox, ListView } from "std-widgets.slint";
+import { PairRow, LinkRow, QueueRow, Theme, ThemedWindow, TypeIcon, HeaderCell, Cell, Glyph, HRow, CheckBox } from "common.slint";
+import { Label, Hint, Radio, TabBtn, PairList } from "dialog_controls.slint";
+
+// ------------------------------------------------------------------ Scheduler (queues)
+
+export component SchedulerDialog inherits ThemedWindow {
+    // set for a moment so the window comes in front of the browser
+    in property <bool> front;
+    always-on-top: root.front;
+    title: @tr("Scheduler");
+    preferred-width: 820px;
+    preferred-height: 560px;
+    in property <[QueueRow]> queues;
+    in-out property <int> current: 0;
+    in-out property <int> tab: 0;
+    in property <bool> is-main;
+    in property <bool> running;
+    // queue fields
+    in-out property <string> name;
+    in-out property <bool> start-enabled;
+    in-out property <string> start-time;
+    in-out property <bool> once;
+    in-out property <string> once-date;
+    in-out property <bool> d0;
+    in-out property <bool> d1;
+    in-out property <bool> d2;
+    in-out property <bool> d3;
+    in-out property <bool> d4;
+    in-out property <bool> d5;
+    in-out property <bool> d6;
+    in-out property <bool> on-startup;
+    in-out property <bool> wake;
+    in-out property <bool> stop-enabled;
+    in-out property <string> stop-time;
+    in-out property <int> parallel: 1;
+    in-out property <int> retries;
+    in-out property <string> folder;
+    in-out property <int> when-done;
+    in-out property <bool> open-when-done;
+    in property <[PairRow]> files;
+    in-out property <int> file-current: -1;
+    in property <string> message;
+    callback pick-queue(int);
+    callback new-queue();
+    callback delete-queue();
+    callback browse();
+    callback file-up();
+    callback file-down();
+    callback file-remove();
+    callback start-now();
+    callback stop-queue();
+    callback apply();
+    callback close-window();
+
+    GridLayout {
+        // a row that reads from right to left in Arabic (wrapped text needs a grid)
+        padding: 10px;
+        spacing: 10px;
+        VerticalLayout {
+            col: Theme.rtl ? 1 : 0;
+            row: 0;
+            width: 210px;
+            spacing: 6px;
+            Rectangle {
+                vertical-stretch: 1;
+                background: Theme.panel;
+                border-width: 1px;
+                border-color: Theme.line;
+                ListView {
+                    for q[i] in root.queues: Rectangle {
+                        height: 24px;
+                        background: i == root.current ? Theme.select : qa.has-hover ? Theme.hover : transparent;
+                        qa := TouchArea {
+                            clicked => {
+                                root.pick-queue(i);
+                            }
+                        }
+                        HRow {
+                            padding-left: Theme.rtl ? (0px) : (8px);
+                            padding-right: Theme.rtl ? (8px) : (0px);
+                            spacing: 6px;
+                            VerticalLayout {
+                                alignment: center;
+                                Glyph {
+                                    kind: q.running ? "play" : "clock";
+                                    tint: q.running ? Theme.ok : Theme.accent;
+                                }
+                            }
+                            Cell {
+                                text: q.name;
+                                horizontal-stretch: 1;
+                            }
+                            Cell {
+                                text: q.count > 0 ? q.count + "  " : "";
+                                color: Theme.muted;
+                            }
+                        }
+                    }
+                }
+            }
+            HRow {
+                spacing: 6px;
+                Button {
+                    text: @tr("New queue");
+                    horizontal-stretch: 1;
+                    clicked => {
+                        root.new-queue();
+                    }
+                }
+                Button {
+                    text: @tr("Delete");
+                    enabled: !root.is-main;
+                    clicked => {
+                        root.delete-queue();
+                    }
+                }
+            }
+        }
+        VerticalLayout {
+            col: Theme.rtl ? 0 : 1;
+            row: 0;
+            horizontal-stretch: 1;
+            spacing: 8px;
+            HRow {
+                spacing: 8px;
+                Label {
+                    text: @tr("Queue name");
+                }
+                LineEdit {
+                    text <=> root.name;
+                    horizontal-stretch: 1;
+                }
+            }
+            HRow {
+                spacing: 2px;
+                TabBtn {
+                    text: @tr("Schedule");
+                    active: root.tab == 0;
+                    clicked => {
+                        root.tab = 0;
+                    }
+                }
+                TabBtn {
+                    text: @tr("Files in the queue");
+                    active: root.tab == 1;
+                    clicked => {
+                        root.tab = 1;
+                    }
+                }
+                TabBtn {
+                    text: @tr("Options");
+                    active: root.tab == 2;
+                    clicked => {
+                        root.tab = 2;
+                    }
+                }
+                Rectangle {
+                    horizontal-stretch: 1;
+                }
+            }
+            Rectangle {
+                vertical-stretch: 1;
+                background: Theme.panel;
+                border-width: 1px;
+                border-color: Theme.line;
+                if root.tab == 0: VerticalLayout {
+                    padding: 12px;
+                    spacing: 8px;
+                    alignment: start;
+                    CheckBox {
+                        text: @tr("Start the queue automatically");
+                        checked <=> root.start-enabled;
+                    }
+                    HRow {
+                        spacing: 8px;
+                        Label {
+                            text: @tr("Start time (HH:MM)");
+                        }
+                        LineEdit {
+                            width: 90px;
+                            text <=> root.start-time;
+                            enabled: root.start-enabled;
+                            placeholder-text: "02:00";
+                        }
+                        Rectangle {
+                            horizontal-stretch: 1;
+                        }
+                    }
+                    HRow {
+                        spacing: 14px;
+                        Radio {
+                            text: @tr("Daily");
+                            checked: !root.once;
+                            enabled: root.start-enabled;
+                            clicked => {
+                                root.once = false;
+                            }
+                        }
+                        Radio {
+                            text: @tr("Once at (YYYY-MM-DD)");
+                            checked: root.once;
+                            enabled: root.start-enabled;
+                            clicked => {
+                                root.once = true;
+                            }
+                        }
+                        LineEdit {
+                            width: 120px;
+                            text <=> root.once-date;
+                            enabled: root.start-enabled && root.once;
+                            placeholder-text: "2026-12-31";
+                        }
+                        Rectangle {
+                            horizontal-stretch: 1;
+                        }
+                    }
+                    if !root.once: HRow {
+                        spacing: 4px;
+                        CheckBox {
+                            text: @tr("Mon");
+                            checked <=> root.d0;
+                        }
+                        CheckBox {
+                            text: @tr("Tue");
+                            checked <=> root.d1;
+                        }
+                        CheckBox {
+                            text: @tr("Wed");
+                            checked <=> root.d2;
+                        }
+                        CheckBox {
+                            text: @tr("Thu");
+                            checked <=> root.d3;
+                        }
+                        CheckBox {
+                            text: @tr("Fri");
+                            checked <=> root.d4;
+                        }
+                        CheckBox {
+                            text: @tr("Sat");
+                            checked <=> root.d5;
+                        }
+                        CheckBox {
+                            text: @tr("Sun");
+                            checked <=> root.d6;
+                        }
+                    }
+                    CheckBox {
+                        text: @tr("Wake the computer from sleep to start it");
+                        checked <=> root.wake;
+                    }
+                    CheckBox {
+                        text: @tr("Start the queue when Moo Downloader starts");
+                        checked <=> root.on-startup;
+                    }
+                    Rectangle {
+                        height: 1px;
+                        background: Theme.grid;
+                    }
+                    HRow {
+                        spacing: 8px;
+                        CheckBox {
+                            text: @tr("Stop the queue at");
+                            checked <=> root.stop-enabled;
+                        }
+                        LineEdit {
+                            width: 90px;
+                            text <=> root.stop-time;
+                            enabled: root.stop-enabled;
+                            placeholder-text: "08:00";
+                        }
+                        Rectangle {
+                            horizontal-stretch: 1;
+                        }
+                    }
+                    Rectangle {
+                        height: 1px;
+                        background: Theme.grid;
+                    }
+                    HRow {
+                        spacing: 8px;
+                        Label {
+                            text: @tr("When the queue is done");
+                        }
+                        ComboBox {
+                            model: [@tr("Do nothing"), @tr("Exit Moo Downloader"), @tr("Sleep"), @tr("Shut down the computer"), @tr("Hibernate")];
+                            current-index <=> root.when-done;
+                        }
+                        Rectangle {
+                            horizontal-stretch: 1;
+                        }
+                    }
+                    Hint {
+                        text: @tr("For Sleep you may need to allow wake timers in the Windows power options, so the computer can wake up for the next start.");
+                    }
+                }
+                if root.tab == 1: VerticalLayout {
+                    padding: 10px;
+                    spacing: 8px;
+                    PairList {
+                        vertical-stretch: 1;
+                        rows: root.files;
+                        current <=> root.file-current;
+                        head-a: @tr("File name");
+                        head-b: @tr("Size");
+                        head-c: @tr("Status");
+                        width-b: 90px;
+                        width-c: 110px;
+                    }
+                    HRow {
+                        spacing: 6px;
+                        Button {
+                            text: @tr("Move up");
+                            enabled: root.file-current > 0;
+                            clicked => {
+                                root.file-up();
+                            }
+                        }
+                        Button {
+                            text: @tr("Move down");
+                            enabled: root.file-current >= 0 && root.file-current < root.files.length - 1;
+                            clicked => {
+                                root.file-down();
+                            }
+                        }
+                        Button {
+                            text: @tr("Delete from queue");
+                            enabled: root.file-current >= 0;
+                            clicked => {
+                                root.file-remove();
+                            }
+                        }
+                        Rectangle {
+                            horizontal-stretch: 1;
+                        }
+                    }
+                    Hint {
+                        text: @tr("Files download in this order. Add files with right click > Move to queue, Add Batch, or \"Download Later\".");
+                    }
+                }
+                if root.tab == 2: VerticalLayout {
+                    padding: 12px;
+                    spacing: 10px;
+                    alignment: start;
+                    HRow {
+                        spacing: 8px;
+                        Label {
+                            text: @tr("Download");
+                        }
+                        SpinBox {
+                            minimum: 1;
+                            maximum: 32;
+                            value <=> root.parallel;
+                        }
+                        Label {
+                            text: @tr("files at the same time");
+                        }
+                        Rectangle {
+                            horizontal-stretch: 1;
+                        }
+                    }
+                    HRow {
+                        spacing: 8px;
+                        Label {
+                            text: @tr("Number of retries for each file if downloading failed");
+                        }
+                        SpinBox {
+                            minimum: 0;
+                            maximum: 50;
+                            value <=> root.retries;
+                        }
+                        Rectangle {
+                            horizontal-stretch: 1;
+                        }
+                    }
+                    Label {
+                        text: @tr("Save all files of this queue to");
+                    }
+                    HRow {
+                        spacing: 6px;
+                        LineEdit {
+                            text <=> root.folder;
+                            placeholder-text: @tr("automatic (by file type)");
+                            horizontal-stretch: 1;
+                        }
+                        Button {
+                            text: "…";
+                            clicked => {
+                                root.browse();
+                            }
+                        }
+                    }
+                    CheckBox {
+                        text: @tr("Open each file when it has finished downloading");
+                        checked <=> root.open-when-done;
+                    }
+                }
+            }
+            GridLayout {
+                // a row that reads from right to left in Arabic (wrapped text needs a grid)
+                spacing: 8px;
+                Text {
+                    col: Theme.rtl ? 4 : 0;
+                    row: 0;
+                    horizontal-alignment: Theme.rtl ? TextHorizontalAlignment.right : TextHorizontalAlignment.left;
+                    text: root.message;
+                    color: Theme.err;
+                    vertical-alignment: center;
+                    horizontal-stretch: 1;
+                    wrap: word-wrap;
+                }
+                Button {
+                    col: Theme.rtl ? 3 : 1;
+                    row: 0;
+                    text: @tr("Start now");
+                    enabled: !root.running;
+                    clicked => {
+                        root.start-now();
+                    }
+                }
+                Button {
+                    col: Theme.rtl ? 2 : 2;
+                    row: 0;
+                    text: @tr("Stop");
+                    enabled: root.running;
+                    clicked => {
+                        root.stop-queue();
+                    }
+                }
+                Button {
+                    col: Theme.rtl ? 1 : 3;
+                    row: 0;
+                    text: @tr("Apply");
+                    primary: true;
+                    clicked => {
+                        root.apply();
+                    }
+                }
+                Button {
+                    col: Theme.rtl ? 0 : 4;
+                    row: 0;
+                    text: @tr("Close");
+                    clicked => {
+                        root.close-window();
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ------------------------------------------------------------------ Site Grabber / Download all links
+
+export component GrabberDialog inherits ThemedWindow {
+    // set for a moment so the window comes in front of the browser
+    in property <bool> front;
+    always-on-top: root.front;
+    title: root.links-mode ? @tr("Download all links") : @tr("Site Grabber");
+    preferred-width: 860px;
+    preferred-height: 600px;
+    // true: links handed over by the browser (no exploring)
+    in property <bool> links-mode;
+    in-out property <string> start-url;
+    in-out property <int> template: 0;
+    in-out property <string> exts;
+    in-out property <int> depth: 1;
+    in-out property <bool> other-sites;
+    in-out property <bool> no-parent: true;
+    in-out property <int> parallel: 4;
+    in property <bool> exploring;
+    in property <string> progress-text;
+    in property <[LinkRow]> links;
+    in-out property <string> filter;
+    in-out property <int> type-filter: 0;
+    in-out property <string> folder;
+    in property <[string]> queue-names: ["Main download queue"];
+    in-out property <int> queue-index: 0;
+    in-out property <bool> start-now: true;
+    in-out property <bool> use-text: true;
+    in property <string> checked-text;
+    in property <string> message;
+    callback template-changed(int);
+    callback explore();
+    callback stop-explore();
+    callback toggle(int);
+    callback check-all(bool);
+    callback filter-changed();
+    callback browse();
+    callback download();
+    callback close-window();
+
+    VerticalLayout {
+        padding: 12px;
+        spacing: 8px;
+        if !root.links-mode: Rectangle {
+            background: Theme.panel;
+            border-width: 1px;
+            border-color: Theme.line;
+            VerticalLayout {
+                padding: 10px;
+                spacing: 8px;
+                HRow {
+                    spacing: 8px;
+                    Label {
+                        text: @tr("Start page");
+                    }
+                    LineEdit {
+                        text <=> root.start-url;
+                        placeholder-text: @tr("https://example.com/gallery/");
+                        horizontal-stretch: 1;
+                    }
+                    if !root.exploring: Button {
+                        text: @tr("Start exploring");
+                        primary: true;
+                        clicked => {
+                            root.explore();
+                        }
+                    }
+                    if root.exploring: Button {
+                        text: @tr("Stop");
+                        clicked => {
+                            root.stop-explore();
+                        }
+                    }
+                }
+                Hint {
+                    text: @tr("Some pages make their links only in the browser (with scripts, or as plain text). For them: open the page in the browser, right-click it and choose \"Download all links with Moo Downloader\": every link you see there is collected.");
+                }
+                HRow {
+                    spacing: 8px;
+                    Label {
+                        text: @tr("Get");
+                    }
+                    ComboBox {
+                        width: 230px;
+                        model: [@tr("All files (not web pages)"), @tr("All images"), @tr("All videos"), @tr("All music / audio"), @tr("Archives and programs"), @tr("Documents (PDF, Office)"), @tr("Custom file types")];
+                        current-index <=> root.template;
+                        selected(v) => {
+                            root.template-changed(root.template);
+                        }
+                    }
+                    LineEdit {
+                        text <=> root.exts;
+                        enabled: root.template == 6;
+                        placeholder-text: @tr("jpg png mp4 (custom types)");
+                        horizontal-stretch: 1;
+                    }
+                }
+                HRow {
+                    spacing: 8px;
+                    Label {
+                        text: @tr("Levels to explore");
+                    }
+                    SpinBox {
+                        width: 90px;
+                        minimum: 0;
+                        maximum: 10;
+                        value <=> root.depth;
+                    }
+                    Label {
+                        text: @tr("Pages at the same time");
+                    }
+                    SpinBox {
+                        width: 90px;
+                        minimum: 1;
+                        maximum: 10;
+                        value <=> root.parallel;
+                    }
+                    CheckBox {
+                        text: @tr("Other sites too");
+                        checked <=> root.other-sites;
+                    }
+                    CheckBox {
+                        text: @tr("Don't go to parent folders");
+                        checked <=> root.no-parent;
+                    }
+                    Rectangle {
+                        horizontal-stretch: 1;
+                    }
+                }
+                Text {
+                    // a long name is cut ("…"), it never makes the window wider
+                    min-width: 0px;
+                    horizontal-alignment: Theme.rtl ? TextHorizontalAlignment.right : TextHorizontalAlignment.left;
+                    text: root.progress-text;
+                    font-size: 11px * Theme.font-scale;
+                    color: root.exploring ? Theme.accent : Theme.muted;
+                    overflow: elide;
+                }
+            }
+        }
+        HRow {
+            spacing: 8px;
+            Label {
+                text: @tr("Show");
+            }
+            ComboBox {
+                width: 150px;
+                model: [@tr("All types"), @tr("Images"), @tr("Videos"), @tr("Music"), @tr("Archives / programs"), @tr("Documents"), @tr("Web pages")];
+                current-index <=> root.type-filter;
+                selected(v) => {
+                    root.filter-changed();
+                }
+            }
+            LineEdit {
+                text <=> root.filter;
+                placeholder-text: @tr("Filter by name or address…");
+                horizontal-stretch: 1;
+                edited(t) => {
+                    root.filter-changed();
+                }
+            }
+            Button {
+                text: @tr("Check all");
+                clicked => {
+                    root.check-all(true);
+                }
+            }
+            Button {
+                text: @tr("Uncheck all");
+                clicked => {
+                    root.check-all(false);
+                }
+            }
+        }
+        Rectangle {
+            vertical-stretch: 1;
+            background: Theme.panel;
+            border-width: 1px;
+            border-color: Theme.line;
+            VerticalLayout {
+                padding: 1px;
+                Rectangle {
+                    height: 22px;
+                    background: @linear-gradient(180deg, Theme.header-top 0%, Theme.header-bottom 100%);
+                    HRow {
+                        HeaderCell {
+                            text: "";
+                            width: 54px;
+                        }
+                        HeaderCell {
+                            text: @tr("File name");
+                            width: 260px;
+                        }
+                        HeaderCell {
+                            text: @tr("Type");
+                            width: 60px;
+                        }
+                        HeaderCell {
+                            text: @tr("Link text");
+                            width: 170px;
+                        }
+                        HeaderCell {
+                            text: @tr("Address");
+                            horizontal-stretch: 1;
+                        }
+                    }
+                }
+                ListView {
+                    vertical-stretch: 1;
+                    for l[i] in root.links: Rectangle {
+                        height: 22px;
+                        background: la.has-hover ? Theme.hover : transparent;
+                        la := TouchArea {
+                            clicked => {
+                                root.toggle(i);
+                            }
+                        }
+                        HRow {
+                            padding-left: Theme.rtl ? (0px) : (6px);
+                            padding-right: Theme.rtl ? (6px) : (0px);
+                            spacing: 4px;
+                            Rectangle {
+                                width: 24px;
+                                Rectangle {
+                                    y: (parent.height - 14px) / 2;
+                                    width: 14px;
+                                    height: 14px;
+                                    border-width: 1px;
+                                    border-radius: 2px;
+                                    border-color: l.checked ? Theme.accent : Theme.muted;
+                                    background: l.checked ? Theme.accent : Theme.input-bg;
+                                    if l.checked: Glyph {
+                                        x: 1px;
+                                        y: 1px;
+                                        width: 12px;
+                                        height: 12px;
+                                        kind: "check";
+                                        tint: white;
+                                    }
+                                }
+                            }
+                            Rectangle {
+                                width: 20px;
+                                TypeIcon {
+                                    kind: l.kind;
+                                    width: 16px;
+                                    height: 16px;
+                                    y: (parent.height - 16px) / 2;
+                                }
+                            }
+                            Cell {
+                                text: l.name;
+                                horizontal-alignment: l.rtl ? TextHorizontalAlignment.right : TextHorizontalAlignment.left;
+                                width: 256px;
+                            }
+                            Cell {
+                                text: l.ext;
+                                width: 56px;
+                                color: Theme.muted;
+                            }
+                            Cell {
+                                text: l.text;
+                                width: 166px;
+                                color: Theme.muted;
+                            }
+                            Cell {
+                                text: l.url;
+                                horizontal-stretch: 1;
+                                color: Theme.accent;
+                                font-size: 11px * Theme.font-scale;
+                            }
+                        }
+                    }
+                }
+            }
+            if root.links.length == 0: Text {
+                y: 80px;
+                width: parent.width;
+                horizontal-alignment: center;
+                text: root.links-mode ? @tr("No links on this page.") : root.exploring ? @tr("Exploring…") : @tr("Type a start page and click \"Start exploring\".");
+                color: Theme.muted;
+            }
+        }
+        HRow {
+            spacing: 8px;
+            Label {
+                text: @tr("Save to");
+            }
+            LineEdit {
+                text <=> root.folder;
+                placeholder-text: @tr("automatic (by file type)");
+                horizontal-stretch: 1;
+            }
+            Button {
+                text: "…";
+                clicked => {
+                    root.browse();
+                }
+            }
+            Label {
+                text: @tr("Queue");
+            }
+            ComboBox {
+                model: root.queue-names;
+                current-index <=> root.queue-index;
+            }
+        }
+        HRow {
+            spacing: 8px;
+            CheckBox {
+                text: @tr("Use link texts as descriptions");
+                checked <=> root.use-text;
+            }
+            CheckBox {
+                text: @tr("Start the queue now");
+                checked <=> root.start-now;
+            }
+            Text {
+                text: root.message != "" ? root.message : root.checked-text;
+                color: root.message != "" ? Theme.err : Theme.muted;
+                vertical-alignment: center;
+                horizontal-stretch: 1;
+                horizontal-alignment: Theme.rtl ? TextHorizontalAlignment.left : TextHorizontalAlignment.right;
+            }
+            Button {
+                text: @tr("Download checked");
+                primary: true;
+                clicked => {
+                    root.download();
+                }
+            }
+            Button {
+                text: @tr("Close");
+                clicked => {
+                    root.close-window();
+                }
+            }
+        }
+    }
+}

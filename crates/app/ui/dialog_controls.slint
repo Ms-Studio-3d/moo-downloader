@@ -1,0 +1,188 @@
+import { ListView } from "std-widgets.slint";
+import { PairRow, Theme, HeaderCell, Cell, HRow } from "common.slint";
+
+// ------------------------------------------------------------------ small parts
+
+export component Label inherits Text {
+    horizontal-alignment: Theme.rtl ? TextHorizontalAlignment.right : TextHorizontalAlignment.left;
+    vertical-alignment: center;
+    color: Theme.text;
+    font-size: 12px * Theme.font-scale;
+}
+
+export component Hint inherits Text {
+    horizontal-alignment: Theme.rtl ? TextHorizontalAlignment.right : TextHorizontalAlignment.left;
+    color: Theme.muted;
+    font-size: 11px * Theme.font-scale;
+    wrap: word-wrap;
+}
+
+export component Section inherits Text {
+    horizontal-alignment: Theme.rtl ? TextHorizontalAlignment.right : TextHorizontalAlignment.left;
+    color: Theme.accent;
+    font-size: 12px * Theme.font-scale;
+    font-weight: 700;
+}
+
+// a round option button (one of several)
+export component Radio inherits Rectangle {
+    in property <string> text;
+    in property <bool> checked;
+    in property <bool> enabled: true;
+    callback clicked();
+    height: 22px;
+    min-width: lbl.preferred-width + 24px;
+    ta := TouchArea {
+        enabled: root.enabled;
+        clicked => {
+            root.clicked();
+        }
+    }
+    Rectangle {
+        x: Theme.rtl ? parent.width - 14px : 0;
+        y: (parent.height - 14px) / 2;
+        width: 14px;
+        height: 14px;
+        border-radius: 7px;
+        border-width: 1px;
+        border-color: root.checked ? Theme.accent : Theme.muted;
+        background: Theme.input-bg;
+        if root.checked: Rectangle {
+            x: 3.5px;
+            y: 3.5px;
+            width: 7px;
+            height: 7px;
+            border-radius: 3.5px;
+            background: Theme.accent;
+        }
+    }
+    lbl := Text {
+        horizontal-alignment: Theme.rtl ? TextHorizontalAlignment.right : TextHorizontalAlignment.left;
+        x: Theme.rtl ? 0px : 20px;
+        width: parent.width - 20px;
+        height: parent.height;
+        text: root.text;
+        vertical-alignment: center;
+        font-size: 12px * Theme.font-scale;
+        color: root.enabled ? Theme.text : Theme.muted;
+    }
+}
+
+// vertical tab list on the left of the Options window
+export component SideTab inherits Rectangle {
+    in property <string> text;
+    in property <bool> active;
+    callback clicked();
+    height: 28px;
+    background: root.active ? Theme.select : ta.has-hover ? Theme.hover : transparent;
+    border-width: root.active ? 1px : 0px;
+    border-color: Theme.select-line;
+    ta := TouchArea {
+        clicked => {
+            root.clicked();
+        }
+    }
+    Text {
+        horizontal-alignment: Theme.rtl ? TextHorizontalAlignment.right : TextHorizontalAlignment.left;
+        x: 10px;
+        width: parent.width - 20px;
+        height: parent.height;
+        text: root.text;
+        vertical-alignment: center;
+        font-size: 12px * Theme.font-scale;
+        font-weight: root.active ? 600 : 400;
+        color: Theme.text;
+    }
+}
+
+// horizontal tab button
+export component TabBtn inherits Rectangle {
+    in property <string> text;
+    in property <bool> active;
+    callback clicked();
+    height: 26px;
+    width: tl.preferred-width + 24px;
+    background: root.active ? Theme.panel : ta.has-hover ? Theme.hover : Theme.window;
+    border-width: 1px;
+    border-color: Theme.line;
+    ta := TouchArea {
+        clicked => {
+            root.clicked();
+        }
+    }
+    tl := Text {
+        width: parent.width;
+        height: parent.height;
+        text: root.text;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+        font-size: 12px * Theme.font-scale;
+        font-weight: root.active ? 600 : 400;
+        color: Theme.text;
+    }
+}
+
+// a small list with selection (logins, server exceptions, queue files)
+export component PairList inherits Rectangle {
+    in property <[PairRow]> rows;
+    in property <string> head-a;
+    in property <string> head-b;
+    in property <string> head-c;
+    in property <length> width-b: 140px;
+    in property <length> width-c: 0px;
+    in-out property <int> current: -1;
+    callback picked(int);
+    background: Theme.panel;
+    border-width: 1px;
+    border-color: Theme.line;
+    VerticalLayout {
+        padding: 1px;
+        Rectangle {
+            height: 22px;
+            background: @linear-gradient(180deg, Theme.header-top 0%, Theme.header-bottom 100%);
+            HRow {
+                HeaderCell {
+                    text: root.head-a;
+                    horizontal-stretch: 1;
+                }
+                if root.head-b != "": HeaderCell {
+                    text: root.head-b;
+                    width: root.width-b;
+                }
+                if root.head-c != "": HeaderCell {
+                    text: root.head-c;
+                    width: root.width-c;
+                }
+            }
+        }
+        ListView {
+            vertical-stretch: 1;
+            for r[i] in root.rows: Rectangle {
+                height: 21px;
+                background: i == root.current ? Theme.select : rt.has-hover ? Theme.hover : transparent;
+                rt := TouchArea {
+                    clicked => {
+                        root.current = i;
+                        root.picked(i);
+                    }
+                }
+                HRow {
+                    padding-left: Theme.rtl ? (0px) : (6px);
+                    padding-right: Theme.rtl ? (6px) : (0px);
+                    Cell {
+                        text: r.a;
+                        horizontal-stretch: 1;
+                    }
+                    if root.head-b != "": Cell {
+                        text: "  " + r.b;
+                        width: root.width-b;
+                    }
+                    if root.head-c != "": Cell {
+                        text: "  " + r.c;
+                        width: root.width-c;
+                    }
+                }
+            }
+        }
+    }
+}

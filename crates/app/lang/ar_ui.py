@@ -2,6 +2,12 @@
 # Run `python lang/make_po.py` after changing it: it rebuilds
 # lang/ar/LC_MESSAGES/swiftget.po from the @tr("...") texts of ui/*.slint.
 AR = {
+    "Mini monitor": "نافذة المتابعة",
+    "Moo Downloader — Mini monitor": "Moo Downloader — نافذة المتابعة",
+    "Open Moo Downloader": "فتح Moo Downloader",
+    "File name contains": "اسم الملف يحتوي على",
+    "Words or phrases, separated by ;": "كلمات أو عبارات، افصل بينها بعلامة ;",
+    "Rules are checked by site, then file name, then extension. Matching files are saved to this category's folder.": "تُطبّق القواعد حسب الموقع، ثم اسم الملف، ثم الامتداد. تُحفظ الملفات المطابقة في مجلد هذا التصنيف.",
     "Subtitles too": "والترجمة أيضًا",
     "{} downloads selected": "تم تحديد {} تحميلات",
     "Open": "فتح",

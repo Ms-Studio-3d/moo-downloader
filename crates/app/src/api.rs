@@ -94,6 +94,8 @@ struct ResolveRequest {
     /// the site's cookies, used only if it asks for a login
     #[serde(default)]
     cookie_list: Vec<swiftget_engine::ytdlp::BrowserCookie>,
+    #[serde(default)]
+    isolated_session: bool,
     /// a stream found on a page: that page
     #[serde(default)]
     referer: Option<String>,
@@ -732,7 +734,7 @@ fn handle(mut req: Request, door: Door, config: &impl Fn() -> String, on_event: 
                 let _done = Done;
                 let cookies = (!r.cookie_list.is_empty()).then_some(r.cookie_list.as_slice());
                 let referer = r.referer.as_deref().filter(|u| is_http(u));
-                let body = match swiftget_engine::ytdlp::resolve_for(&r.url, cookies, referer) {
+                let body = match swiftget_engine::ytdlp::resolve_for_browser(&r.url, cookies, referer, r.isolated_session) {
                     Ok(info) => serde_json::json!({
                         "ok": true, "title": info.title, "site": info.site, "options": info.options
                     }),

@@ -304,6 +304,38 @@ where
     wait_for_picture(weak, true, position, Box::new(then), 0, false);
 }
 
+/// Anchor the first opening inside the usable desktop, clear of the taskbar.
+/// Subsequent openings use the normal position saved by Windows.
+pub(crate) fn place_mini(weak: slint::Weak<crate::MiniMonitor>, position: Option<(i32, i32)>) {
+    let after = weak.clone();
+    wait_for_picture(weak, false, position, Box::new(move || {
+        #[cfg(windows)]
+        if position.is_none() {
+            use windows_sys::Win32::Foundation::RECT;
+            use windows_sys::Win32::Graphics::Gdi::{GetMonitorInfoW, MonitorFromWindow, MONITORINFO, MONITOR_DEFAULTTONEAREST};
+            use windows_sys::Win32::UI::WindowsAndMessaging::{GetWindowRect, SetWindowPos, SWP_NOACTIVATE, SWP_NOSIZE, SWP_NOZORDER};
+            let Some(mini) = after.upgrade() else { return };
+            let Some(id) = hwnd_of(mini.window()) else { return };
+            let hwnd = id as _;
+            // The normal placement step chose the monitor under the pointer.
+            unsafe {
+                let mut info: MONITORINFO = std::mem::zeroed();
+                info.cbSize = std::mem::size_of::<MONITORINFO>() as u32;
+                let mut rect: RECT = std::mem::zeroed();
+                if GetMonitorInfoW(MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST), &mut info) != 0 && GetWindowRect(hwnd, &mut rect) != 0 {
+                    let area = info.rcWork;
+                    let inset = (12.0 * mini.window().scale_factor()).round() as i32;
+                    let x = (area.right - (rect.right - rect.left) - inset).max(area.left);
+                    let y = (area.bottom - (rect.bottom - rect.top) - inset).max(area.top);
+                    SetWindowPos(hwnd, std::ptr::null_mut(), x, y, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
+                }
+            }
+        }
+        #[cfg(not(windows))]
+        let _ = after;
+    }), 0, false);
+}
+
 fn wait_for_picture<C>(weak: slint::Weak<C>, maximizable: bool, position: Option<(i32, i32)>, then: Box<dyn FnOnce()>, tries: u32, seen: bool)
 where
     C: ComponentHandle + 'static,

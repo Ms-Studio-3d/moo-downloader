@@ -537,16 +537,24 @@ fn playlist_args(url: &str, cookie_file: Option<&Path>, lang: &str) -> Vec<std::
 
 /// A new, private file for the browser's cookies (never one that exists).
 fn cookie_file(cookies: &[BrowserCookie]) -> anyhow::Result<std::path::PathBuf> {
+    let base = crate::tools::work_dir().unwrap_or_else(std::env::temp_dir);
+    cookie_file_in(&base, cookies)
+}
+
+fn cookie_file_in(base: &Path, cookies: &[BrowserCookie]) -> anyhow::Result<std::path::PathBuf> {
     use std::io::Write;
     static N: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
     let nanos = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).map(|d| d.as_nanos()).unwrap_or(0);
     for _ in 0..5 {
         let n = N.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        let base = crate::tools::work_dir().unwrap_or_else(std::env::temp_dir);
-        let path = base.join(format!("ezoo-cookies-{}-{nanos:x}-{n}.txt", std::process::id()));
+        let path = base.join(format!("moo-cookies-{}-{nanos:x}-{n}.txt", std::process::id()));
         match std::fs::OpenOptions::new().write(true).create_new(true).open(&path) {
             Ok(mut f) => {
-                f.write_all(netscape_cookies(cookies).as_bytes())?;
+                if let Err(error) = f.write_all(netscape_cookies(cookies).as_bytes()) {
+                    drop(f);
+                    let _ = std::fs::remove_file(&path);
+                    return Err(error.into());
+                }
                 return Ok(path);
             }
             Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => continue,
@@ -662,7 +670,16 @@ fn with_cookies<T>(
     cookies: Option<&[BrowserCookie]>,
     run: impl Fn(Option<&Path>) -> anyhow::Result<T>,
 ) -> anyhow::Result<T> {
-    if let Some(list) = cookies {
+    with_cookies_mode(page_url, cookies, true, run)
+}
+
+fn with_cookies_mode<T>(
+    page_url: &str,
+    cookies: Option<&[BrowserCookie]>,
+    remember_session: bool,
+    run: impl Fn(Option<&Path>) -> anyhow::Result<T>,
+) -> anyhow::Result<T> {
+    if let Some(list) = cookies.filter(|_| remember_session) {
         remember_cookies(page_url, list);
     }
     match run(None) {
@@ -671,7 +688,7 @@ fn with_cookies<T>(
         // that say nothing of a login ("Cannot parse data", "No video
         // formats found"): with the browser's cookies there, always
         Err(e) if needs_login(&e.to_string()) || (members_site(page_url) && cookies.is_some_and(|c| !c.is_empty())) => {
-            let list = cookies.map(<[BrowserCookie]>::to_vec).or_else(|| remembered_cookies(page_url));
+            let list = cookies.map(<[BrowserCookie]>::to_vec).or_else(|| remember_session.then(|| remembered_cookies(page_url)).flatten());
             let Some(list) = list.filter(|c| !c.is_empty()) else {
                 return Err(if login_wall(&e.to_string()) { e.context(LOGIN_NEEDED) } else { e });
             };
@@ -802,8 +819,15 @@ pub fn resolve_for(page_url: &str, cookies: Option<&[BrowserCookie]>, referer: O
     if let Some(info) = cached(page_url) {
         return Ok(info);
     }
-    let info = resolve_now(page_url, cookies, referer)?;
+    let info = resolve_now(page_url, cookies, referer, true)?;
     remember(page_url, &info);
+    Ok(info)
+}
+
+/// A private/container browser session never uses or populates shared caches.
+pub fn resolve_for_browser(page_url: &str, cookies: Option<&[BrowserCookie]>, referer: Option<&str>, isolated: bool) -> anyhow::Result<YtInfo> {
+    let info = resolve_now(page_url, cookies, referer, !isolated)?;
+    if !isolated { remember(page_url, &info); }
     Ok(info)
 }
 
@@ -831,15 +855,15 @@ pub fn forget(page_url: &str) {
     RESULTS.lock().unwrap_or_else(|p| p.into_inner()).retain(|(u, _, _)| u != page_url);
 }
 
-fn resolve_now(page_url: &str, cookies: Option<&[BrowserCookie]>, referer: Option<&str>) -> anyhow::Result<YtInfo> {
+fn resolve_now(page_url: &str, cookies: Option<&[BrowserCookie]>, referer: Option<&str>, remember_session: bool) -> anyhow::Result<YtInfo> {
     // a file on Google Drive: its own file, whole, as it was put there (the
     // player's qualities are made smaller by Google, and yt-dlp often can't
     // see a file shared with the user)
     let drive = drive_file_id(page_url);
     let tool = find_tool("yt-dlp")
-        .ok_or_else(|| anyhow!("yt-dlp.exe is missing. Moo Downloader gets it by itself in a minute (internet needed), then try again"));
-    let cookies = cookies.filter(|c| !c.is_empty());
-    let found = tool.and_then(|tool| with_cookies(page_url, cookies, |file| run_ytdlp(&tool, page_url, file, referer)));
+        .ok_or_else(|| anyhow!("yt-dlp is missing. Open Help and choose Check for updates (video downloader), then try again."));
+    let cookies = if remember_session { cookies.filter(|c| !c.is_empty()) } else { Some(cookies.unwrap_or_default()) };
+    let found = tool.and_then(|tool| with_cookies_mode(page_url, cookies, remember_session, |file| run_ytdlp(&tool, page_url, file, referer)));
     let mut info = match (found, &drive) {
         (Ok(json), _) => build_options(&json),
         (Err(_), Some(_)) => YtInfo { title: String::new(), site: "Google Drive".into(), options: Vec::new() },
@@ -1081,6 +1105,16 @@ pub fn pick_option(options: &[YtOption], wanted: &str) -> Option<YtOption> {
         fits.into_iter().filter(|o| height_of(o) == top).collect()
     };
     pool.iter().find(|o| o.ext == "mp4").or(pool.first()).map(|o| (*o).clone())
+}
+
+/// Version reported by the installed tool, without loading user config.
+pub fn installed_version() -> anyhow::Result<Option<String>> {
+    let Some(tool) = find_tool("yt-dlp") else { return Ok(None) };
+    let mut cmd = ytdlp_command(&tool);
+    cmd.args(["--ignore-config", "--version"]);
+    let output = cmd.output().context("could not check yt-dlp version")?;
+    anyhow::ensure!(output.status.success(), "could not check yt-dlp version");
+    Ok(Some(String::from_utf8_lossy(&output.stdout).trim().to_string()))
 }
 
 /// Update yt-dlp right now ("Help > Update video downloader"). Blocking.
@@ -1351,7 +1385,8 @@ mod tests {
             secure: true,
             expiration_date: None,
         }];
-        let (a, b) = (cookie_file(&list).unwrap(), cookie_file(&list).unwrap());
+        let folder = std::env::temp_dir();
+        let (a, b) = (cookie_file_in(&folder, &list).unwrap(), cookie_file_in(&folder, &list).unwrap());
         assert_ne!(a, b);
         assert!(std::fs::read_to_string(&a).unwrap().contains("example.com"));
         let _ = std::fs::remove_file(a);

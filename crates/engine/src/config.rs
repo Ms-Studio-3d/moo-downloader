@@ -180,6 +180,9 @@ pub struct CategoryDef {
     /// files from these sites go here too ("*.example.com" allowed)
     #[serde(default)]
     pub sites: Vec<String>,
+    /// Case-insensitive substrings that match a downloaded file name.
+    #[serde(default)]
+    pub name_contains: Vec<String>,
     /// shipped with the app (can't be deleted, only edited)
     #[serde(default)]
     pub builtin: bool,
@@ -190,6 +193,7 @@ pub fn default_categories() -> Vec<CategoryDef> {
         name: name.into(),
         exts: exts.split_whitespace().map(String::from).collect(),
         sites: Vec::new(),
+        name_contains: Vec::new(),
         builtin: true,
     };
     vec![
@@ -422,6 +426,9 @@ pub struct Settings {
     /// Last normal position of the main window (Windows workspace coordinates).
     /// None on an older install: center it once, then remember the user's move.
     pub main_position: Option<(i32, i32)>,
+    pub mini_position: Option<(i32, i32)>,
+    /// Unix timestamp of the last completed yt-dlp update check.
+    pub video_update_checked_at: u64,
     /// the main window was maximized when the program closed
     pub main_maximized: bool,
     /// the progress window shows its details (connections list)
@@ -541,6 +548,8 @@ impl Default for Settings {
             language: String::new(),
             window_sizes: Default::default(),
             main_position: None,
+            mini_position: None,
+            video_update_checked_at: 0,
             main_maximized: false,
             progress_details: false,
             gpu_drawing: false,
@@ -631,6 +640,12 @@ impl Settings {
                 if c.sites.iter().any(|s| host_matches(&host, s)) {
                     return c.name.clone();
                 }
+            }
+        }
+        let name = file_name.to_lowercase();
+        for c in &self.categories {
+            if c.name_contains.iter().any(|word| !word.trim().is_empty() && name.contains(&word.trim().to_lowercase())) {
+                return c.name.clone();
             }
         }
         let ext = crate::filename::extension(file_name);
@@ -845,9 +860,12 @@ mod tests {
             name: "Courses".into(),
             exts: vec![],
             sites: vec!["courses.example.com".into()],
+            name_contains: vec!["lesson one".into(), "درس".into()],
             builtin: false,
         });
         assert_eq!(s.category_of("v.mp4", "https://www.courses.example.com/v.mp4"), "Courses");
+        assert_eq!(s.category_of("LESSON ONE.mp4", "https://other.example/v"), "Courses");
+        assert_eq!(s.category_of("الدرس الأول.mp4", "https://other.example/v"), "Courses");
         s.logins.push(SiteLogin { site: "example.com/members".into(), user: "u".into(), password: "p".into() });
         assert!(s.login_for("https://example.com/members/a.pdf").is_some());
         assert!(s.login_for("https://example.com/public/a.pdf").is_none());

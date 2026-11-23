@@ -36,13 +36,13 @@ async fn temporary_parts_are_separate_from_the_destination() {
         start: true,
         ..Default::default()
     });
-    let part = app_data.join("download-parts").join(format!(".ezoo-{id}.sgpart"));
+    let part = app_data.join("download-parts").join(format!(".moo-{id}.sgpart"));
     for _ in 0..500 {
         if part.exists() && mgr.get(id).is_some_and(|v| v.downloaded > 0) { break; }
         tokio::time::sleep(Duration::from_millis(10)).await;
     }
     assert!(part.exists(), "temporary file not found in {part:?}");
-    assert!(!desktop.join(format!(".ezoo-{id}.sgpart")).exists());
+    assert!(!desktop.join(format!(".moo-{id}.sgpart")).exists());
     mgr.pause(id);
     tokio::time::sleep(Duration::from_millis(300)).await;
     let final_dir = root.join("other-destination");
@@ -70,7 +70,7 @@ async fn temporary_parts_are_separate_from_the_destination() {
         start: true,
         ..Default::default()
     });
-    let custom_part = custom.join(format!(".ezoo-{id}.sgpart"));
+    let custom_part = custom.join(format!(".moo-{id}.sgpart"));
     for _ in 0..500 {
         if custom_part.exists() { break; }
         tokio::time::sleep(Duration::from_millis(10)).await;
