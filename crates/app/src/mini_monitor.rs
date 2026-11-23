@@ -7,7 +7,7 @@ use crate::{
     MiniMonitor, Theme,
 };
 use slint::{ComponentHandle, ModelRc, Timer, TimerMode, VecModel};
-use std::{rc::Rc, sync::Arc, time::Duration};
+use std::{cell::{Cell, RefCell}, collections::HashSet, rc::Rc, sync::Arc, time::Duration};
 
 #[cfg(all(test, windows))]
 #[path = "mini_monitor_test.rs"]
@@ -40,16 +40,56 @@ fn row(view: DownloadView) -> MiniDownloadRow {
 pub(crate) fn wire(ctx: &Ctx, mini: &MiniMonitor) -> Timer {
     let model = Rc::new(VecModel::default());
     mini.set_rows(ModelRc::from(model.clone()));
-    let refresh = {
+    let manually_closed = Rc::new(Cell::new(false));
+    let main_was_hidden = Rc::new(Cell::new(false));
+    let previous = Rc::new(RefCell::new(HashSet::new()));
+    let open = {
         let ctx = ctx.clone();
         let weak = mini.as_weak();
         Rc::new(move || {
             let Some(mini) = weak.upgrade() else { return };
+            let opening = !mini.window().is_visible();
+            if opening { winfx::send_away(mini.window()); }
+            if mini.show().is_err() { return; }
+            mini.window().set_minimized(false);
+            if opening {
+                winfx::keep_drawn(&mini);
+                winfx::place_mini(weak.clone(), ctx.mgr.settings().mini_position);
+            }
+        })
+    };
+    let refresh = {
+        let ctx = ctx.clone();
+        let weak = mini.as_weak();
+        let manually_closed = manually_closed.clone();
+        let main_was_hidden = main_was_hidden.clone();
+        let previous = previous.clone();
+        let open = open.clone();
+        Rc::new(move || {
+            let Some(mini) = weak.upgrade() else { return };
+            let Some(main) = ctx.main.upgrade() else { return };
+            let hidden = !main.window().is_visible() || main.window().is_minimized();
+            let was_hidden = main_was_hidden.replace(hidden);
+            let pending = early_download(&ctx);
+            let views: Vec<_> = ctx.mgr.running_downloads().into_iter()
+                .filter(|v| Some(v.id) != pending).collect();
+            let active: HashSet<_> = views.iter().map(|v| v.id).collect();
+            let new_download = active.iter().any(|id| !previous.borrow().contains(id));
+            *previous.borrow_mut() = active;
+            if hidden && (!was_hidden || new_download) {
+                manually_closed.set(false);
+            }
+            if hidden && !views.is_empty() && !manually_closed.get() && !mini.window().is_visible() {
+                open();
+            } else if (was_hidden && !hidden) || (hidden && views.is_empty()) {
+                if mini.window().is_visible() {
+                    remember_position(&ctx.mgr, mini.window());
+                    let _ = mini.hide();
+                }
+            }
             if !mini.window().is_visible() || mini.window().is_minimized() { return; }
             set_theme_of(mini.global::<Theme>(), &Look::of(&ctx.mgr.settings()));
-            let pending = early_download(&ctx);
-            let rows: Vec<_> = ctx.mgr.running_downloads().into_iter()
-                .filter(|v| Some(v.id) != pending).map(row).collect();
+            let rows: Vec<_> = views.into_iter().map(row).collect();
             let summary = match rows.len() {
                 0 => t("No active downloads"),
                 1 => t("1 active download"),
@@ -60,25 +100,19 @@ pub(crate) fn wire(ctx: &Ctx, mini: &MiniMonitor) -> Timer {
         })
     };
     if let Some(main) = ctx.main.upgrade() {
-        let weak = mini.as_weak();
-        let ctx = ctx.clone();
+        let open = open.clone();
+        let manually_closed = manually_closed.clone();
         let refresh = refresh.clone();
         main.on_open_mini(move || {
-            let Some(mini) = weak.upgrade() else { return };
-            let opening = !mini.window().is_visible();
-            if opening { winfx::send_away(mini.window()); }
-            if mini.show().is_err() { return; }
-            mini.window().set_minimized(false);
-            if opening {
-                winfx::keep_drawn(&mini);
-                winfx::place_mini(weak.clone(), ctx.mgr.settings().mini_position);
-            }
+            manually_closed.set(false);
+            open();
             refresh();
         });
     }
     let mgr = ctx.mgr.clone();
     let weak = mini.as_weak();
     mini.window().on_close_requested(move || {
+        manually_closed.set(true);
         if let Some(mini) = weak.upgrade() { remember_position(&mgr, mini.window()); }
         slint::CloseRequestResponse::HideWindow
     });

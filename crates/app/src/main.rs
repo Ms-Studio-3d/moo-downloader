@@ -2660,7 +2660,10 @@ fn confirm_with(ctx: &Ctx, title: &str, text: &str, delete_files: Option<bool>, 
             slint::CloseRequestResponse::HideWindow
         });
     }
-    open_window!(d);
+    winfx::send_away(d.window());
+    let _ = d.show();
+    winfx::place_confirmation(d.as_weak(), ctx.main.clone());
+    to_front!(d);
     CONFIRMS.with(|c| c.borrow_mut().push(d));
 }
 

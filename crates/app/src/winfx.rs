@@ -294,6 +294,41 @@ where
     wait_for_picture(weak, maximizable, None, Box::new(|| {}), 0, false);
 }
 
+/// Place a confirmation over the main window when it is visible.
+pub(crate) fn place_confirmation(weak: slint::Weak<crate::ConfirmDialog>, main: slint::Weak<crate::MainWindow>) {
+    let dialog = weak.clone();
+    wait_for_picture(weak, false, None, Box::new(move || {
+        #[cfg(windows)]
+        {
+            use windows_sys::Win32::Foundation::RECT;
+            use windows_sys::Win32::Graphics::Gdi::{GetMonitorInfoW, MonitorFromWindow, MONITORINFO, MONITOR_DEFAULTTONEAREST};
+            use windows_sys::Win32::UI::WindowsAndMessaging::{GetWindowRect, SetWindowPos, SWP_NOACTIVATE, SWP_NOSIZE, SWP_NOZORDER};
+            let (Some(dialog), Some(main)) = (dialog.upgrade(), main.upgrade()) else { return };
+            if !main.window().is_visible() || main.window().is_minimized() { return; }
+            let (Some(child), Some(parent)) = (hwnd_of(dialog.window()), hwnd_of(main.window())) else { return };
+            unsafe {
+                let (child, parent) = (child as _, parent as _);
+                let mut main_rect: RECT = std::mem::zeroed();
+                let mut child_rect: RECT = std::mem::zeroed();
+                let mut monitor: MONITORINFO = std::mem::zeroed();
+                monitor.cbSize = std::mem::size_of::<MONITORINFO>() as u32;
+                if GetWindowRect(parent, &mut main_rect) == 0 || GetWindowRect(child, &mut child_rect) == 0
+                    || GetMonitorInfoW(MonitorFromWindow(parent, MONITOR_DEFAULTTONEAREST), &mut monitor) == 0 { return; }
+                let width = child_rect.right - child_rect.left;
+                let height = child_rect.bottom - child_rect.top;
+                let x = main_rect.left + (main_rect.right - main_rect.left - width) / 2;
+                let y = main_rect.top + (main_rect.bottom - main_rect.top - height) / 2;
+                let work = monitor.rcWork;
+                let x = x.clamp(work.left, (work.right - width).max(work.left));
+                let y = y.clamp(work.top, (work.bottom - height).max(work.top));
+                SetWindowPos(child, std::ptr::null_mut(), x, y, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
+            }
+        }
+        #[cfg(not(windows))]
+        let _ = (dialog, main);
+    }), 0, false);
+}
+
 /// Main window: restore its position instead of centering on every show.
 /// `then` may maximize it after its normal position has been restored.
 pub(crate) fn place_main<C>(weak: slint::Weak<C>, position: Option<(i32, i32)>, then: impl FnOnce() + 'static)
