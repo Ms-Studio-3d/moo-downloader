@@ -16,7 +16,6 @@ for (const {p,text} of sources) {
   assert.doesNotMatch(text, /spawn_updater|update_if_due|update::spawn|run_installer|UPDATE_PUBLIC_KEY/, p);
   assert.doesNotMatch(text, /AhmedEzo686\/ezoo-download/, p);
 }
-const main = read('crates/app/src/main.rs');
 const tools = read('crates/engine/src/tools.rs');
 const updater = read('crates/app/src/update.rs');
 assert.match(updater, /open::that_detached\("https:\/\/github\.com\/Ms-Studio-3d\/moo-downloader\/releases"\)/);
@@ -26,11 +25,15 @@ const localProbe = tools.match(/pub async fn restore_ffmpeg\([^]*?\n\}/)?.[0];
 assert.ok(localProbe, 'FFmpeg local probe exists');
 assert.doesNotMatch(localProbe, /\.await|download\(|get\(|Command/);
 assert.match(localProbe, /bundled\("ffmpeg"\)\.is_some\(\)/);
-const manualBlock = main.slice(main.indexOf('main.on_update_tools'), main.indexOf('main.on_check_app_update'));
-assert.match(manualBlock, /tools::update_all\(client\)\.await/);
-assert.match(manualBlock, /tools_busy.swap/);
-assert.equal(sources.filter(s => /tools::update_all\(/.test(s.text)).length, 1, 'only the explicit Help callback updates tools');
-assert.equal(sources.filter(s => /ytdlp::update_now/.test(s.text)).length, 1, 'only the manual helper action updates yt-dlp');
+const mainWindow = read('crates/app/src/main_window.rs');
+assert.match(mainWindow, /main\.on_update_tools\(move \|\| video_updates::install\(&update_ctx\)\)/);
+const videoUpdates = read('crates/app/src/video_updates.rs');
+assert.match(videoUpdates, /if ask\(&question\) \{\s*install\(&ctx\);/);
+assert.match(videoUpdates, /tools::video_update_available/);
+assert.match(videoUpdates, /INSTALLING\.swap/);
+assert.match(videoUpdates, /tools::update_all\(client\)\.await/);
+assert.equal(sources.flatMap(s => s.text.match(/tools::update_all\(/g) || []).length, 1);
+assert.equal(sources.filter(s => /ytdlp::update_now/.test(s.text)).length, 1);
 const firefox = JSON.parse(read('extension/manifest.firefox.json'));
 const chrome = JSON.parse(read('extension/manifest.json'));
 const version = /^version\s*=\s*"([^"]+)"/m.exec(read('Cargo.toml'))[1];
