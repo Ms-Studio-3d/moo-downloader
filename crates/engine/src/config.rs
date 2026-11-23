@@ -362,7 +362,7 @@ pub struct Settings {
     pub panel_skip_sites: String,
     pub panel_min_video_kb: u64,
     pub panel_min_audio_kb: u64,
-    /// .sgpart files go here while downloading (None = next to the file)
+    /// .sgpart files go here while downloading (None = app data folder)
     pub temp_dir: Option<PathBuf>,
     /// "Download File Info" window for downloads from the browser / clipboard
     pub show_start_dialog: bool,

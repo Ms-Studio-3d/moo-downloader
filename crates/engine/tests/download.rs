@@ -16,6 +16,70 @@ fn test_data(len: usize) -> Arc<Vec<u8>> {
     Arc::new((0..len).map(|i| (i * 31 % 251) as u8).collect())
 }
 
+/// Unfinished data stays in the app's parts folder, even when an early
+/// download is retargeted. A configured parts folder takes precedence.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn temporary_parts_are_separate_from_the_destination() {
+    use swiftget_engine::{Manager, NewDownload, Status};
+    let data = test_data(3 * 1024 * 1024 + 7);
+    let port = serve(data.clone()).await;
+    let root = std::env::temp_dir().join(format!("moo-parts-{}-{port}", std::process::id()));
+    let desktop = root.join("desktop");
+    let app_data = root.join("app");
+    let mgr = Manager::new(tokio::runtime::Handle::current(), app_data.clone()).unwrap();
+
+    let id = mgr.add(NewDownload {
+        url: format!("http://127.0.0.1:{port}/file.bin"),
+        file_name: Some("file.bin".into()),
+        save_dir: Some(desktop.clone()),
+        early: true,
+        start: true,
+        ..Default::default()
+    });
+    let part = app_data.join("download-parts").join(format!(".ezoo-{id}.sgpart"));
+    for _ in 0..500 {
+        if part.exists() && mgr.get(id).is_some_and(|v| v.downloaded > 0) { break; }
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    }
+    assert!(part.exists(), "temporary file not found in {part:?}");
+    assert!(!desktop.join(format!(".ezoo-{id}.sgpart")).exists());
+    mgr.pause(id);
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    let final_dir = root.join("other-destination");
+    mgr.retarget(id, &final_dir, "renamed.bin", None, None).unwrap();
+    assert!(part.exists(), "retargeting moved the temporary file");
+    mgr.start(id);
+    for _ in 0..1500 {
+        if mgr.get(id).is_some_and(|v| matches!(v.status, Status::Completed | Status::Failed)) { break; }
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    }
+    let view = mgr.get(id).unwrap();
+    assert_eq!(view.status, Status::Completed, "{:?}", view.error);
+    assert_eq!(std::fs::read(final_dir.join("renamed.bin")).unwrap(), *data);
+    assert!(!part.exists());
+
+    let custom = root.join("custom-parts");
+    let mut settings = mgr.settings();
+    settings.temp_dir = Some(custom.clone());
+    mgr.set_settings(settings).unwrap();
+    let id = mgr.add(NewDownload {
+        url: format!("http://127.0.0.1:{port}/other.bin"),
+        file_name: Some("other.bin".into()),
+        save_dir: Some(desktop),
+        early: true,
+        start: true,
+        ..Default::default()
+    });
+    let custom_part = custom.join(format!(".ezoo-{id}.sgpart"));
+    for _ in 0..500 {
+        if custom_part.exists() { break; }
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    }
+    assert!(custom_part.exists(), "custom parts folder was not used");
+    mgr.shutdown();
+    let _ = std::fs::remove_dir_all(root);
+}
+
 async fn serve(data: Arc<Vec<u8>>) -> u16 {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let port = listener.local_addr().unwrap().port();

@@ -81,7 +81,8 @@ fn fill(ui: &Ui, d: &SettingsDialog, s: &Settings) {
     // Save to
     d.set_download_dir(s.download_dir.display().to_string().into());
     d.set_category_folders(s.category_folders);
-    d.set_temp_dir(s.temp_dir.as_ref().map(|p| p.display().to_string()).unwrap_or_default().into());
+    d.set_temp_dir(s.temp_dir.as_ref().filter(|p| !p.as_os_str().is_empty())
+        .cloned().unwrap_or_else(|| ui.ctx.mgr.default_temp_dir()).display().to_string().into());
     // Downloads
     d.set_show_start_dialog(s.show_start_dialog);
     d.set_start_while_info(s.start_while_info);
